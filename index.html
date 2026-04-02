@@ -1,0 +1,1008 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#0D0D0D">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="FinBuddy">
+  <title>FinBuddy</title>
+  <link id="pwa-manifest" rel="manifest" href="">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root {
+      --bg:         #0D0D0D;
+      --card:       #1A1A1A;
+      --float:      #232323;
+      --border:     #2A2A2A;
+      --accent:     #00E5A0;
+      --accent-dim: rgba(0,229,160,0.10);
+      --glow:       0 0 28px rgba(0,229,160,0.22);
+      --red:        #FF4D4D;
+      --orange:     #FF9500;
+      --text:       #F2F2F2;
+      --muted:      #888;
+      --dim:        #444;
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+      margin: 0; padding: 0;
+    }
+
+    html, body {
+      width: 100%; height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, sans-serif;
+      overflow: hidden;
+      overscroll-behavior: none;
+    }
+
+    ::-webkit-scrollbar { display: none; }
+    * { -ms-overflow-style: none; scrollbar-width: none; }
+
+    /* ── App Shell ── */
+    #app {
+      display: flex;
+      flex-direction: column;
+      height: 100dvh;
+      max-width: 430px;
+      margin: 0 auto;
+      position: relative;
+    }
+
+    /* ── Splash ── */
+    #splash {
+      position: fixed;
+      inset: 0;
+      background: var(--bg);
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      padding: 56px 28px 52px;
+      max-width: 430px;
+      margin: 0 auto;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 100%;
+      transition: opacity 0.45s ease, transform 0.45s ease;
+    }
+    #splash.hide {
+      opacity: 0;
+      transform: translateX(-50%) translateY(18px);
+      pointer-events: none;
+    }
+
+    /* ── Main / Tabs ── */
+    #main {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+
+    .tab-panel { display: none; min-height: 100%; padding-bottom: 96px; }
+    .tab-panel.active { display: block; }
+
+    /* ── Bottom Nav ── */
+    #bottom-nav {
+      background: var(--card);
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-around;
+      height: 64px;
+      padding-bottom: env(safe-area-inset-bottom, 0);
+      flex-shrink: 0;
+      position: relative;
+      z-index: 10;
+    }
+
+    .nav-btn {
+      display: flex; flex-direction: column; align-items: center; gap: 3px;
+      background: none; border: none; cursor: pointer;
+      color: var(--dim); padding: 8px 18px;
+      font-size: 10px; letter-spacing: 0.5px;
+      transition: color 0.2s ease, transform 0.12s ease;
+    }
+    .nav-btn:active { transform: scale(0.88); }
+    .nav-btn.active { color: var(--accent); }
+    .nav-btn svg { width: 22px; height: 22px; }
+
+    .nav-add {
+      width: 58px; height: 58px; border-radius: 50%;
+      background: var(--accent); border: none; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 4px 22px rgba(0,229,160,0.45);
+      margin-top: -22px;
+      transition: transform 0.12s ease, box-shadow 0.12s ease;
+      flex-shrink: 0;
+    }
+    .nav-add:active { transform: scale(0.90); }
+    .nav-add svg { width: 28px; height: 28px; stroke: #000; }
+
+    /* ── Card ── */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+    }
+
+    /* ── Monospace amounts ── */
+    .mono {
+      font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Courier New', monospace;
+      font-weight: 700;
+    }
+
+    /* ── Accent button ── */
+    .btn-accent {
+      background: var(--accent); color: #000; font-weight: 700;
+      border: none; border-radius: 14px; cursor: pointer;
+      transition: transform 0.12s ease, opacity 0.12s ease;
+    }
+    .btn-accent:hover { opacity: 0.9; }
+    .btn-accent:active { transform: scale(0.96); }
+    .btn-accent:disabled { opacity: 0.32; cursor: not-allowed; transform: none; }
+
+    /* ── Progress ── */
+    .progress-track {
+      background: var(--float); border-radius: 99px;
+      height: 7px; overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%; border-radius: 99px; background: var(--accent);
+      transition: width 0.5s ease;
+    }
+    .progress-fill.warn { background: var(--orange); }
+    .progress-fill.over { background: var(--red); }
+
+    /* ── Keypad ── */
+    .keypad {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+    }
+    .key {
+      background: var(--float); border: 1px solid var(--border);
+      border-radius: 14px; color: var(--text);
+      font-size: 22px; font-weight: 600;
+      height: 62px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      user-select: none;
+      transition: transform 0.08s ease, background 0.08s ease;
+    }
+    .key:active { transform: scale(0.90); background: #2C2C2C; }
+    .key-del { color: var(--muted); font-size: 18px; }
+
+    /* ── Category pill ── */
+    .cat-pill {
+      display: flex; flex-direction: column; align-items: center; gap: 5px;
+      padding: 11px 10px; border-radius: 14px;
+      background: var(--float); border: 1.5px solid transparent;
+      cursor: pointer; min-width: 70px;
+      font-size: 11px; color: var(--muted);
+      user-select: none;
+      transition: border-color 0.15s ease, transform 0.1s ease, color 0.15s ease;
+      flex-shrink: 0;
+    }
+    .cat-pill:active { transform: scale(0.93); }
+    .cat-pill.sel {
+      border-color: var(--accent); color: var(--accent);
+      background: var(--accent-dim);
+    }
+    .cat-emoji { font-size: 22px; line-height: 1; }
+
+    /* ── Expense item ── */
+    .exp-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 13px 0; border-bottom: 1px solid var(--border);
+    }
+    .exp-item:last-child { border-bottom: none; }
+    .exp-icon {
+      width: 42px; height: 42px; border-radius: 13px;
+      background: var(--float); display: flex; align-items: center;
+      justify-content: center; font-size: 19px; flex-shrink: 0;
+    }
+    .exp-info { flex: 1; min-width: 0; }
+    .exp-name {
+      font-size: 14px; font-weight: 600;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .exp-meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .exp-amt {
+      font-size: 15px; font-weight: 700; color: var(--red);
+      font-family: 'SF Mono', monospace; flex-shrink: 0;
+    }
+
+    /* ── Note input ── */
+    .note-input {
+      background: none; border: none;
+      border-bottom: 1.5px solid var(--border);
+      color: var(--text); font-size: 15px;
+      padding: 8px 0; width: 100%; outline: none;
+      transition: border-color 0.2s ease;
+    }
+    .note-input:focus { border-color: var(--accent); }
+    .note-input::placeholder { color: var(--dim); }
+
+    /* ── Budget input ── */
+    .bud-input {
+      background: var(--float); border: 1px solid var(--border);
+      border-radius: 10px; color: var(--text);
+      font-size: 15px; font-weight: 600;
+      padding: 7px 12px; width: 96px; outline: none;
+      text-align: right;
+      transition: border-color 0.2s ease;
+    }
+    .bud-input:focus { border-color: var(--accent); }
+
+    /* ── Animations ── */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(14px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes popIn {
+      0%   { transform: scale(0.80); opacity: 0; }
+      65%  { transform: scale(1.06); }
+      100% { transform: scale(1);    opacity: 1; }
+    }
+
+    .fade-up  { animation: fadeUp 0.38s ease both; }
+    .pop-in   { animation: popIn  0.30s cubic-bezier(0.34,1.56,0.64,1) both; }
+
+    /* ── Section label ── */
+    .sec-label {
+      font-size: 11px; color: var(--muted);
+      text-transform: uppercase; letter-spacing: 1px;
+      margin-bottom: 8px;
+    }
+
+    /* ── Toast ── */
+    #toast {
+      position: fixed; bottom: 86px; left: 50%;
+      transform: translateX(-50%) translateY(12px);
+      background: var(--accent); color: #000;
+      font-weight: 700; font-size: 13px;
+      padding: 10px 22px; border-radius: 99px;
+      z-index: 999; opacity: 0; pointer-events: none;
+      white-space: nowrap;
+      transition: opacity 0.22s ease, transform 0.22s ease;
+    }
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  </style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════
+     SPLASH
+══════════════════════════════════ -->
+<div id="splash">
+
+  <!-- Wordmark -->
+  <div style="text-align:center;">
+    <div style="display:inline-flex;align-items:center;gap:10px;margin-bottom:10px;">
+      <svg width="38" height="38" viewBox="0 0 38 38" fill="none">
+        <rect width="38" height="38" rx="11" fill="rgba(0,229,160,0.12)"/>
+        <path d="M19 8 C13.477 8 9 12.477 9 18 S13.477 28 19 28 S29 23.523 29 18 S24.523 8 19 8Z" fill="rgba(0,229,160,0.18)"/>
+        <text x="19" y="23" text-anchor="middle" font-size="15" font-weight="900" fill="#00E5A0" font-family="monospace">₹</text>
+      </svg>
+      <span style="font-size:30px;font-weight:900;letter-spacing:-0.6px;color:#F2F2F2;">FinBuddy</span>
+    </div>
+    <p style="font-size:12px;color:#555;letter-spacing:1.2px;text-transform:uppercase;">Your Money · Your Control</p>
+  </div>
+
+  <!-- Illustration -->
+  <div style="flex:1;display:flex;align-items:center;justify-content:center;">
+    <svg width="270" height="270" viewBox="0 0 270 270" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <!-- Ambient glow -->
+      <circle cx="135" cy="135" r="108" fill="rgba(0,229,160,0.04)"/>
+      <circle cx="135" cy="135" r="98"  stroke="#1E1E1E" stroke-width="1"/>
+
+      <!-- Big card -->
+      <rect x="52" y="82" width="166" height="106" rx="18" fill="#1A1A1A" stroke="#2A2A2A" stroke-width="1.5"/>
+      <!-- Card header band -->
+      <rect x="52" y="82" width="166" height="34" rx="18" fill="#222"/>
+      <rect x="52" y="100" width="166" height="16" fill="#222"/>
+      <!-- Card chip -->
+      <rect x="70" y="91" width="24" height="16" rx="4" fill="#00E5A0" fill-opacity="0.55"/>
+      <!-- Card text lines -->
+      <rect x="70" y="124" width="60" height="7" rx="3.5" fill="#2E2E2E"/>
+      <rect x="70" y="138" width="40" height="6" rx="3" fill="#2A2A2A"/>
+      <!-- Rupee symbol on card -->
+      <text x="192" y="148" text-anchor="middle" font-size="26" font-weight="900" fill="#00E5A0" font-opacity="0.9" font-family="monospace">₹</text>
+
+      <!-- Floating coins -->
+      <ellipse cx="188" cy="170" rx="20" ry="7.5" fill="rgba(0,229,160,0.55)"/>
+      <ellipse cx="188" cy="164" rx="20" ry="7.5" fill="rgba(0,229,160,0.75)"/>
+      <ellipse cx="188" cy="158" rx="20" ry="7.5" fill="#00E5A0"/>
+      <text x="188" y="162" text-anchor="middle" font-size="9" font-weight="800" fill="#000" font-family="monospace">₹</text>
+
+      <!-- Bar chart -->
+      <rect x="72"  y="205" width="15" height="26" rx="4" fill="rgba(0,229,160,0.35)"/>
+      <rect x="92"  y="194" width="15" height="37" rx="4" fill="rgba(0,229,160,0.50)"/>
+      <rect x="112" y="186" width="15" height="45" rx="4" fill="rgba(0,229,160,0.70)"/>
+      <rect x="132" y="196" width="15" height="35" rx="4" fill="rgba(0,229,160,0.55)"/>
+      <rect x="152" y="188" width="15" height="43" rx="4" fill="#00E5A0"/>
+
+      <!-- Trend line -->
+      <polyline points="79,220 99,208 119,199 139,209 159,200" stroke="#00E5A0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke-opacity="0.6"/>
+
+      <!-- Sparkles -->
+      <circle cx="48"  cy="76"  r="3"   fill="#00E5A0" fill-opacity="0.5"/>
+      <circle cx="222" cy="68"  r="2.5" fill="#00E5A0" fill-opacity="0.4"/>
+      <circle cx="230" cy="192" r="4"   fill="#00E5A0" fill-opacity="0.3"/>
+      <circle cx="38"  cy="178" r="2.5" fill="#00E5A0" fill-opacity="0.35"/>
+      <circle cx="215" cy="145" r="3"   fill="#00E5A0" fill-opacity="0.25"/>
+    </svg>
+  </div>
+
+  <!-- Tagline + CTA -->
+  <div style="width:100%;text-align:center;">
+    <p style="font-size:27px;font-weight:900;line-height:1.22;margin-bottom:8px;letter-spacing:-0.4px;">
+      Track Your <span style="color:#00E5A0;">Expenses</span><br>
+      And Control Your<br>Wallet Everywhere.
+    </p>
+    <p style="font-size:14px;color:#555;margin-bottom:34px;">Simple · Fast · Offline-first</p>
+    <button id="splash-cta" class="btn-accent"
+      style="width:100%;padding:18px;font-size:17px;border-radius:16px;letter-spacing:0.2px;
+             box-shadow:0 8px 32px rgba(0,229,160,0.38);">
+      Let's Start →
+    </button>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════
+     APP SHELL
+══════════════════════════════════ -->
+<div id="app" style="display:none;">
+
+  <div id="main">
+
+    <!-- ═══ HOME ═══ -->
+    <div id="tab-home" class="tab-panel active">
+      <div style="padding:20px 18px 0;">
+
+        <!-- Greeting -->
+        <div class="fade-up" style="display:flex;align-items:center;justify-content:space-between;padding-top:10px;margin-bottom:22px;">
+          <div>
+            <p id="home-greeting-sub" style="font-size:12px;color:var(--muted);margin-bottom:3px;"></p>
+            <h1 style="font-size:26px;font-weight:900;letter-spacing:-0.4px;">Hello, Bobby 👋</h1>
+          </div>
+          <div style="width:44px;height:44px;border-radius:14px;background:var(--accent-dim);
+                      border:1px solid var(--border);display:flex;align-items:center;
+                      justify-content:center;font-size:20px;">💰</div>
+        </div>
+
+        <!-- Monthly card -->
+        <div class="card fade-up" style="padding:20px;margin-bottom:12px;position:relative;
+             overflow:hidden;animation-delay:0.05s;box-shadow:var(--glow);">
+          <div style="position:absolute;right:-28px;top:-28px;width:110px;height:110px;
+                      border-radius:50%;background:rgba(0,229,160,0.06);pointer-events:none;"></div>
+          <div style="position:absolute;left:0;top:0;bottom:0;width:4px;border-radius:20px 0 0 20px;
+                      background:var(--accent);"></div>
+          <p class="sec-label" style="margin-left:8px;">This Month</p>
+          <p id="home-month-total" class="mono" style="font-size:40px;margin-left:8px;">₹0</p>
+          <p id="home-month-label" style="font-size:12px;color:var(--muted);margin-top:3px;margin-left:8px;"></p>
+        </div>
+
+        <!-- Today card -->
+        <div class="card fade-up" style="padding:16px 18px;margin-bottom:22px;
+             display:flex;align-items:center;justify-content:space-between;animation-delay:0.09s;">
+          <div>
+            <p class="sec-label">Today's Spend</p>
+            <p id="home-today-total" class="mono" style="font-size:26px;">₹0</p>
+          </div>
+          <div style="width:1px;height:36px;background:var(--border);"></div>
+          <div style="text-align:right;">
+            <p class="sec-label">Transactions</p>
+            <p id="home-today-count" class="mono" style="font-size:26px;color:var(--accent);">0</p>
+          </div>
+        </div>
+
+        <!-- Recent list -->
+        <div class="fade-up" style="animation-delay:0.13s;">
+          <p style="font-size:17px;font-weight:800;margin-bottom:14px;">Recent Expenses</p>
+          <div id="home-list" class="card" style="padding:0 14px;"></div>
+          <div id="home-empty" style="text-align:center;padding:44px 20px;color:var(--muted);display:none;">
+            <div style="font-size:42px;margin-bottom:12px;">💸</div>
+            <p style="font-size:15px;font-weight:700;margin-bottom:4px;">No expenses yet</p>
+            <p style="font-size:13px;">Tap <span style="color:var(--accent);">+</span> to add your first one</p>
+          </div>
+        </div>
+
+      </div>
+    </div>
+    <!-- /HOME -->
+
+
+    <!-- ═══ ADD EXPENSE ═══ -->
+    <div id="tab-add" class="tab-panel">
+      <div style="padding:20px 18px 0;">
+
+        <h2 style="font-size:20px;font-weight:900;padding-top:10px;margin-bottom:18px;">Add Expense</h2>
+
+        <!-- Amount display -->
+        <div style="text-align:center;margin-bottom:18px;">
+          <div style="display:inline-flex;align-items:baseline;gap:5px;">
+            <span style="font-size:28px;font-weight:700;color:var(--muted);">₹</span>
+            <span id="add-display" class="mono" style="font-size:54px;min-width:8px;line-height:1;">0</span>
+          </div>
+          <div style="height:2px;background:linear-gradient(90deg,transparent,var(--accent),transparent);
+                      width:72%;margin:8px auto 0;border-radius:99px;opacity:0.7;"></div>
+        </div>
+
+        <!-- Category -->
+        <div style="margin-bottom:14px;">
+          <p class="sec-label">Category</p>
+          <div id="cat-row" style="display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;">
+            <!-- js-generated -->
+          </div>
+        </div>
+
+        <!-- Note -->
+        <div style="margin-bottom:18px;">
+          <p class="sec-label">Note</p>
+          <input id="add-note" class="note-input" type="text"
+            placeholder="e.g. Lunch at canteen" maxlength="60" autocomplete="off">
+        </div>
+
+        <!-- Keypad -->
+        <div class="keypad" style="margin-bottom:14px;">
+          <button class="key" data-k="1">1</button>
+          <button class="key" data-k="2">2</button>
+          <button class="key" data-k="3">3</button>
+          <button class="key" data-k="4">4</button>
+          <button class="key" data-k="5">5</button>
+          <button class="key" data-k="6">6</button>
+          <button class="key" data-k="7">7</button>
+          <button class="key" data-k="8">8</button>
+          <button class="key" data-k="9">9</button>
+          <button class="key" data-k=".">.</button>
+          <button class="key" data-k="0">0</button>
+          <button class="key key-del" data-k="back">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"/>
+              <line x1="18" y1="9" x2="12" y2="15"/>
+              <line x1="12" y1="9" x2="18" y2="15"/>
+            </svg>
+          </button>
+        </div>
+
+        <button id="save-btn" class="btn-accent"
+          style="width:100%;padding:18px;font-size:17px;letter-spacing:0.2px;" disabled>
+          Save Expense
+        </button>
+      </div>
+    </div>
+    <!-- /ADD -->
+
+
+    <!-- ═══ BUDGET ═══ -->
+    <div id="tab-budget" class="tab-panel">
+      <div style="padding:20px 18px 0;">
+        <h2 style="font-size:20px;font-weight:900;padding-top:10px;margin-bottom:4px;">Monthly Limits</h2>
+        <p style="font-size:13px;color:var(--muted);margin-bottom:20px;">Spending caps per category</p>
+        <div id="budget-list" style="display:flex;flex-direction:column;gap:11px;"></div>
+        <button id="budget-save-btn" class="btn-accent"
+          style="width:100%;padding:16px;font-size:16px;margin-top:22px;">
+          Save Limits
+        </button>
+      </div>
+    </div>
+    <!-- /BUDGET -->
+
+
+    <!-- ═══ EXPORT ═══ -->
+    <div id="tab-export" class="tab-panel">
+      <div style="padding:20px 18px 0;">
+        <h2 style="font-size:20px;font-weight:900;padding-top:10px;margin-bottom:20px;">Export Data</h2>
+
+        <!-- Summary card -->
+        <div class="card" style="padding:18px;margin-bottom:12px;">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+            <div>
+              <p class="sec-label">Total Entries</p>
+              <p id="exp-count" class="mono" style="font-size:30px;color:var(--accent);">0</p>
+            </div>
+            <div>
+              <p class="sec-label">Total Spent</p>
+              <p id="exp-total" class="mono" style="font-size:22px;">₹0</p>
+            </div>
+            <div>
+              <p class="sec-label">First Entry</p>
+              <p id="exp-first" style="font-size:14px;font-weight:600;">—</p>
+            </div>
+            <div>
+              <p class="sec-label">Latest Entry</p>
+              <p id="exp-last" style="font-size:14px;font-weight:600;">—</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Category breakdown -->
+        <div id="exp-breakdown" class="card" style="padding:16px;margin-bottom:20px;"></div>
+
+        <button id="csv-btn" class="btn-accent"
+          style="width:100%;padding:18px;font-size:17px;">
+          ↓ Download CSV
+        </button>
+        <p style="text-align:center;font-size:12px;color:var(--dim);margin-top:10px;">
+          Saves a .csv file to your device
+        </p>
+      </div>
+    </div>
+    <!-- /EXPORT -->
+
+  </div><!-- /#main -->
+
+
+  <!-- ── Bottom Nav ── -->
+  <nav id="bottom-nav">
+    <button class="nav-btn active" id="nav-home" data-tab="home">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+        <polyline points="9 22 9 12 15 12 15 22"/>
+      </svg>
+      <span>Home</span>
+    </button>
+
+    <button class="nav-btn" id="nav-budget" data-tab="budget">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="2" stroke-linecap="round">
+        <line x1="18" y1="20" x2="18" y2="10"/>
+        <line x1="12" y1="20" x2="12" y2="4"/>
+        <line x1="6"  y1="20" x2="6"  y2="14"/>
+      </svg>
+      <span>Budget</span>
+    </button>
+
+    <button class="nav-add" id="nav-add" data-tab="add">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="2.5" stroke-linecap="round">
+        <line x1="12" y1="5"  x2="12" y2="19"/>
+        <line x1="5"  y1="12" x2="19" y2="12"/>
+      </svg>
+    </button>
+
+    <button class="nav-btn" id="nav-export" data-tab="export">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+        <polyline points="7 10 12 15 17 10"/>
+        <line x1="12" y1="15" x2="12" y2="3"/>
+      </svg>
+      <span>Export</span>
+    </button>
+  </nav>
+
+</div><!-- /#app -->
+
+<div id="toast"></div>
+
+
+<!-- ════════════════════════════════════════════════════════
+     JAVASCRIPT
+════════════════════════════════════════════════════════ -->
+<script>
+'use strict';
+
+// ── Constants ────────────────────────────────────────────
+const EXP_KEY  = 'vt_expenses';
+const BUD_KEY  = 'vt_budgets';
+
+const CATS = [
+  { id: 'food',          label: 'Food',          emoji: '🍔' },
+  { id: 'transport',     label: 'Transport',     emoji: '🚗' },
+  { id: 'college',       label: 'College',       emoji: '🎓' },
+  { id: 'entertainment', label: 'Entertainment', emoji: '🎮' },
+  { id: 'health',        label: 'Health',        emoji: '💊' },
+  { id: 'other',         label: 'Other',         emoji: '📦' },
+];
+
+// ── Data helpers ─────────────────────────────────────────
+function loadExp()  { try { return JSON.parse(localStorage.getItem(EXP_KEY))  || []; } catch { return []; } }
+function saveExp(a) { localStorage.setItem(EXP_KEY, JSON.stringify(a)); }
+function loadBud()  { try { return JSON.parse(localStorage.getItem(BUD_KEY))  || {}; } catch { return {}; } }
+function saveBud(o) { localStorage.setItem(BUD_KEY, JSON.stringify(o)); }
+
+function todayKey(d = new Date()) {
+  return d.toISOString().slice(0, 10);
+}
+function monthKey(d = new Date()) {
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+}
+function prevDay(n = 1) {
+  const d = new Date(); d.setDate(d.getDate() - n); return todayKey(d);
+}
+
+function monthTotal(mk = monthKey()) {
+  return loadExp().filter(e => e.date.startsWith(mk)).reduce((s, e) => s + e.amount, 0);
+}
+function todayStats() {
+  const tk = todayKey();
+  const arr = loadExp().filter(e => e.date === tk);
+  return { total: arr.reduce((s, e) => s + e.amount, 0), count: arr.length };
+}
+function recentExp(n = 12) {
+  return [...loadExp()].sort((a, b) => b.id - a.id).slice(0, n);
+}
+function catMonthSpend(catId, mk = monthKey()) {
+  return loadExp().filter(e => e.category === catId && e.date.startsWith(mk))
+                  .reduce((s, e) => s + e.amount, 0);
+}
+
+// ── Formatting ───────────────────────────────────────────
+function fmtAmt(n) {
+  if (n === 0) return '₹0';
+  return '₹' + n.toLocaleString('en-IN', { maximumFractionDigits: 2 });
+}
+function fmtDate(iso) {
+  const tk = todayKey();
+  if (iso === tk)        return 'Today';
+  if (iso === prevDay()) return 'Yesterday';
+  const d = new Date(iso + 'T00:00:00');
+  return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+}
+function fmtMonth(mk) {
+  const [y, m] = mk.split('-');
+  return new Date(+y, +m - 1, 1).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
+}
+function escH(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── PWA ──────────────────────────────────────────────────
+function initPWA() {
+  const iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192">
+    <rect width="192" height="192" rx="40" fill="#0D0D0D"/>
+    <rect x="16" y="16" width="160" height="160" rx="32" fill="#1A1A1A"/>
+    <text x="96" y="130" text-anchor="middle" font-size="96" font-family="serif">💰</text>
+    <rect x="16" y="152" width="160" height="8" rx="4" fill="#00E5A0"/>
+  </svg>`;
+  const iconUrl = 'data:image/svg+xml,' + encodeURIComponent(iconSvg);
+
+  const manifest = {
+    name: 'FinBuddy',
+    short_name: 'FinBuddy',
+    description: 'Personal expense tracker',
+    start_url: '.',
+    display: 'standalone',
+    background_color: '#0D0D0D',
+    theme_color: '#0D0D0D',
+    orientation: 'portrait-primary',
+    icons: [
+      { src: iconUrl, sizes: '192x192', type: 'image/svg+xml', purpose: 'any maskable' },
+      { src: iconUrl, sizes: '512x512', type: 'image/svg+xml', purpose: 'any maskable' },
+    ],
+  };
+
+  const mBlob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
+  document.getElementById('pwa-manifest').href = URL.createObjectURL(mBlob);
+
+  if ('serviceWorker' in navigator) {
+    const sw = `
+const C='finbuddy-v1';
+self.addEventListener('install',e=>{
+  e.waitUntil(caches.open(C).then(c=>c.addAll(['/'])));
+  self.skipWaiting();
+});
+self.addEventListener('activate',e=>e.waitUntil(clients.claim()));
+self.addEventListener('fetch',e=>{
+  e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request)));
+});`;
+    const swBlob = new Blob([sw], { type: 'application/javascript' });
+    navigator.serviceWorker.register(URL.createObjectURL(swBlob)).catch(() => {});
+  }
+}
+
+// ── Tab navigation ───────────────────────────────────────
+let curTab = 'home';
+
+function switchTab(id) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+
+  const panel = document.getElementById('tab-' + id);
+  if (panel) panel.classList.add('active');
+
+  const btn = document.getElementById('nav-' + id);
+  if (btn) btn.classList.add('active');
+
+  curTab = id;
+  document.getElementById('main').scrollTop = 0;
+
+  if (id === 'home')   renderHome();
+  if (id === 'budget') renderBudget();
+  if (id === 'export') renderExport();
+  if (id === 'add')    resetAdd();
+}
+
+// ── HOME ─────────────────────────────────────────────────
+function greetingText() {
+  const h = new Date().getHours();
+  if (h < 12) return 'Good morning,';
+  if (h < 17) return 'Good afternoon,';
+  return 'Good evening,';
+}
+
+function renderHome() {
+  document.getElementById('home-greeting-sub').textContent = greetingText();
+
+  const mk = monthKey();
+  const mt = monthTotal(mk);
+  const { total: tt, count: tc } = todayStats();
+
+  document.getElementById('home-month-total').textContent = fmtAmt(mt);
+  document.getElementById('home-month-label').textContent = fmtMonth(mk);
+  document.getElementById('home-today-total').textContent = fmtAmt(tt);
+  document.getElementById('home-today-count').textContent = tc;
+
+  const recent = recentExp(12);
+  const listEl  = document.getElementById('home-list');
+  const emptyEl = document.getElementById('home-empty');
+
+  if (recent.length === 0) {
+    listEl.style.display  = 'none';
+    emptyEl.style.display = 'block';
+    return;
+  }
+
+  listEl.style.display  = 'block';
+  emptyEl.style.display = 'none';
+
+  listEl.innerHTML = recent.map(e => {
+    const cat = CATS.find(c => c.id === e.category) || CATS[5];
+    const label = e.note ? escH(e.note) : cat.label;
+    const amtStr = e.amount.toLocaleString('en-IN', { maximumFractionDigits: 2 });
+    return `<div class="exp-item">
+      <div class="exp-icon">${cat.emoji}</div>
+      <div class="exp-info">
+        <div class="exp-name">${label}</div>
+        <div class="exp-meta">${fmtDate(e.date)} · ${cat.label}</div>
+      </div>
+      <div class="exp-amt">-₹${amtStr}</div>
+    </div>`;
+  }).join('');
+}
+
+// ── ADD EXPENSE ──────────────────────────────────────────
+let rawVal  = '';
+let selCat  = 'food';
+
+function buildCatPicker() {
+  const row = document.getElementById('cat-row');
+  row.innerHTML = CATS.map(c => `
+    <button class="cat-pill${c.id === selCat ? ' sel' : ''}" data-cat="${c.id}">
+      <span class="cat-emoji">${c.emoji}</span>
+      <span>${c.label}</span>
+    </button>`).join('');
+
+  row.querySelectorAll('.cat-pill').forEach(btn => {
+    btn.addEventListener('click', () => {
+      selCat = btn.dataset.cat;
+      row.querySelectorAll('.cat-pill').forEach(b => b.classList.remove('sel'));
+      btn.classList.add('sel');
+    });
+  });
+}
+
+function syncDisplay() {
+  document.getElementById('add-display').textContent = rawVal || '0';
+  const v = parseFloat(rawVal);
+  document.getElementById('save-btn').disabled = !(v > 0);
+}
+
+function handleKey(k) {
+  if (k === 'back') {
+    rawVal = rawVal.slice(0, -1);
+  } else if (k === '.') {
+    if (!rawVal.includes('.')) rawVal = (rawVal || '0') + '.';
+  } else {
+    const parts = rawVal.split('.');
+    if (parts[0].length >= 7) return;              // max 7 digits before decimal
+    if (parts.length === 2 && parts[1].length >= 2) return; // max 2 decimal places
+    if (rawVal === '0') { rawVal = k; }
+    else rawVal += k;
+  }
+  syncDisplay();
+}
+
+function resetAdd() {
+  rawVal = '';
+  selCat = 'food';
+  document.getElementById('add-note').value = '';
+  syncDisplay();
+  buildCatPicker();
+}
+
+function saveExpense() {
+  const amount = parseFloat(rawVal);
+  if (!amount || amount <= 0) return;
+
+  const note = document.getElementById('add-note').value.trim();
+  const arr  = loadExp();
+  arr.push({
+    id:       Date.now(),
+    date:     todayKey(),
+    category: selCat,
+    amount:   Math.round(amount * 100) / 100,
+    note,
+  });
+  saveExp(arr);
+
+  // Feedback then go home
+  const btn = document.getElementById('save-btn');
+  btn.textContent = '✓ Saved!';
+  btn.disabled = true;
+  setTimeout(() => {
+    switchTab('home');
+    showToast('Expense saved!');
+  }, 550);
+}
+
+// ── BUDGET ───────────────────────────────────────────────
+function renderBudget() {
+  const budgets = loadBud();
+  const mk      = monthKey();
+
+  document.getElementById('budget-list').innerHTML = CATS.map(cat => {
+    const limit = budgets[cat.id] || 0;
+    const spent = catMonthSpend(cat.id, mk);
+    const pct   = limit > 0 ? Math.min((spent / limit) * 100, 110) : 0;
+    const cls   = pct >= 100 ? 'over' : pct >= 80 ? 'warn' : '';
+    const pctLabel = limit > 0
+      ? `<p style="font-size:11px;color:var(--muted);margin-top:5px;text-align:right;">
+           ${fmtAmt(spent)} / ${fmtAmt(limit)}
+           <span style="color:${pct>=100?'var(--red)':pct>=80?'var(--orange)':'var(--muted)'};">
+             (${Math.round((spent/limit)*100)}%)
+           </span>
+         </p>` : '';
+
+    return `<div class="card" style="padding:15px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:11px;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="font-size:22px;">${cat.emoji}</span>
+          <div>
+            <p style="font-size:14px;font-weight:700;">${cat.label}</p>
+            <p style="font-size:11px;color:var(--muted);">Spent: ${fmtAmt(spent)}</p>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:5px;">
+          <span style="font-size:12px;color:var(--muted);">₹</span>
+          <input class="bud-input" type="number" min="0" step="100"
+            placeholder="No limit"
+            value="${limit > 0 ? limit : ''}"
+            id="bi-${cat.id}" data-cat="${cat.id}">
+        </div>
+      </div>
+      <div class="progress-track">
+        <div class="progress-fill ${cls}" style="width:${pct.toFixed(1)}%;"></div>
+      </div>
+      ${pctLabel}
+    </div>`;
+  }).join('');
+}
+
+function saveBudgets() {
+  const obj = {};
+  CATS.forEach(c => {
+    const v = parseFloat(document.getElementById('bi-' + c.id)?.value);
+    if (v > 0) obj[c.id] = v;
+  });
+  saveBud(obj);
+  renderBudget();
+  showToast('Limits saved!');
+}
+
+// ── EXPORT ───────────────────────────────────────────────
+function renderExport() {
+  const all    = loadExp();
+  const total  = all.reduce((s, e) => s + e.amount, 0);
+  const mk     = monthKey();
+
+  document.getElementById('exp-count').textContent = all.length;
+  document.getElementById('exp-total').textContent = fmtAmt(total);
+
+  if (all.length > 0) {
+    const sorted = [...all].sort((a, b) => a.date.localeCompare(b.date));
+    document.getElementById('exp-first').textContent = fmtDate(sorted[0].date);
+    document.getElementById('exp-last').textContent  = fmtDate(sorted[sorted.length - 1].date);
+  } else {
+    document.getElementById('exp-first').textContent = '—';
+    document.getElementById('exp-last').textContent  = '—';
+  }
+
+  const rows = CATS.map(cat => {
+    const s = catMonthSpend(cat.id, mk);
+    if (!s) return '';
+    return `<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+      <span style="font-size:16px;width:22px;">${cat.emoji}</span>
+      <span style="font-size:13px;flex:1;color:var(--muted);">${cat.label}</span>
+      <span class="mono" style="font-size:14px;">${fmtAmt(s)}</span>
+    </div>`;
+  }).join('');
+
+  document.getElementById('exp-breakdown').innerHTML = `
+    <p class="sec-label" style="margin-bottom:12px;">This Month by Category</p>
+    ${rows || '<p style="color:var(--dim);font-size:13px;">No expenses this month yet</p>'}`;
+}
+
+function downloadCSV() {
+  const all = loadExp();
+  if (!all.length) { showToast('No data to export'); return; }
+
+  const sorted = [...all].sort((a, b) => a.date.localeCompare(b.date));
+  const lines  = [['Date', 'Category', 'Note', 'Amount (INR)']];
+  sorted.forEach(e => {
+    const cat = CATS.find(c => c.id === e.category)?.label || e.category;
+    lines.push([e.date, cat, e.note || '', e.amount]);
+  });
+
+  const csv = lines.map(r =>
+    r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')
+  ).join('\n');
+
+  const a  = document.createElement('a');
+  a.href   = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
+  a.download = `finbuddy-${monthKey()}.csv`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  showToast('CSV downloaded!');
+}
+
+// ── Toast ────────────────────────────────────────────────
+let toastTm;
+function showToast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTm);
+  toastTm = setTimeout(() => el.classList.remove('show'), 2400);
+}
+
+// ── Boot ─────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  initPWA();
+
+  // Splash CTA
+  document.getElementById('splash-cta').addEventListener('click', () => {
+    const splash = document.getElementById('splash');
+    splash.classList.add('hide');
+    setTimeout(() => {
+      splash.style.display = 'none';
+      document.getElementById('app').style.display = 'flex';
+      renderHome();
+    }, 460);
+  });
+
+  // All data-tab nav buttons
+  document.querySelectorAll('[data-tab]').forEach(btn => {
+    btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+  });
+
+  // Keypad
+  document.querySelectorAll('.key').forEach(btn => {
+    btn.addEventListener('click', () => handleKey(btn.dataset.k));
+  });
+
+  // Save expense
+  document.getElementById('save-btn').addEventListener('click', saveExpense);
+
+  // Budget save
+  document.getElementById('budget-save-btn').addEventListener('click', saveBudgets);
+
+  // CSV download
+  document.getElementById('csv-btn').addEventListener('click', downloadCSV);
+
+  // Prime add form
+  buildCatPicker();
+  syncDisplay();
+});
+</script>
+</body>
+</html>
