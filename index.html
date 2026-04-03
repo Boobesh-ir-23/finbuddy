@@ -216,6 +216,30 @@
     }
     .bud-input:focus { border-color: var(--accent); }
 
+    /* ── Date input ── */
+    .date-input {
+      background: var(--float); border: 1px solid var(--border);
+      border-radius: 10px; color: var(--text);
+      font-size: 15px; font-weight: 600;
+      padding: 10px 12px; width: 100%; outline: none;
+      color-scheme: dark;
+      transition: border-color 0.2s ease;
+    }
+    .date-input:focus { border-color: var(--accent); }
+
+    /* ── Expense action buttons ── */
+    .exp-actions { display: flex; gap: 6px; flex-shrink: 0; }
+    .exp-act-btn {
+      width: 32px; height: 32px; border-radius: 9px;
+      border: 1px solid var(--border); background: var(--float);
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; color: var(--muted);
+      transition: color 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+    }
+    .exp-act-btn:active { transform: scale(0.88); }
+    .exp-act-btn.edit:hover { color: var(--accent); border-color: var(--accent); }
+    .exp-act-btn.del:hover  { color: var(--red);    border-color: var(--red); }
+
     /* ── Animations ── */
     @keyframes fadeUp {
       from { opacity: 0; transform: translateY(14px); }
@@ -322,7 +346,7 @@
     <div id="tab-add" class="tab-panel">
       <div style="padding:20px 18px 0;">
 
-        <h2 style="font-size:20px;font-weight:900;padding-top:10px;margin-bottom:18px;">Add Expense</h2>
+        <h2 id="add-form-title" style="font-size:20px;font-weight:900;padding-top:10px;margin-bottom:18px;">Add Expense</h2>
 
         <!-- Amount display -->
         <div style="text-align:center;margin-bottom:18px;">
@@ -347,6 +371,12 @@
           <p class="sec-label">Note</p>
           <input id="add-note" class="note-input" type="text"
             placeholder="e.g. Lunch at canteen" maxlength="60" autocomplete="off">
+        </div>
+
+        <!-- Date -->
+        <div style="margin-bottom:14px;">
+          <p class="sec-label">Date</p>
+          <input id="add-date" class="date-input" type="date">
         </div>
 
         <!-- Keypad -->
@@ -529,7 +559,12 @@ function todayStats() {
   return { total: arr.reduce((s, e) => s + e.amount, 0), count: arr.length };
 }
 function recentExp(n = 12) {
-  return [...loadExp()].sort((a, b) => b.id - a.id).slice(0, n);
+  return [...loadExp()]
+    .sort((a, b) => {
+      const d = entryDate(b).localeCompare(entryDate(a)); // newest date first
+      return d !== 0 ? d : b.id - a.id;                  // same date: newer insertion first
+    })
+    .slice(0, n);
 }
 function catMonthSpend(catId, mk = monthKey()) {
   return loadExp().filter(e => e.category === catId && e.date.startsWith(mk))
@@ -551,6 +586,9 @@ function fmtDate(iso) {
 function fmtMonth(mk) {
   const [y, m] = mk.split('-');
   return new Date(+y, +m - 1, 1).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
+}
+function entryDate(e) {
+  return e.date || new Date(e.id).toISOString().slice(0, 10);
 }
 function escH(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -626,7 +664,7 @@ function switchTab(id) {
   if (id === 'home')   renderHome();
   if (id === 'budget') renderBudget();
   if (id === 'export') renderExport();
-  if (id === 'add')    resetAdd();
+  if (id === 'add')    { if (editId === null) resetAdd(); else buildCatPicker(); }
 }
 
 // ── HOME ─────────────────────────────────────────────────
@@ -663,16 +701,32 @@ function renderHome() {
   emptyEl.style.display = 'none';
 
   listEl.innerHTML = recent.map(e => {
-    const cat = CATS.find(c => c.id === e.category) || CATS[5];
-    const label = e.note ? escH(e.note) : cat.label;
+    const cat    = CATS.find(c => c.id === e.category) || CATS[5];
+    const label  = e.note ? escH(e.note) : cat.label;
     const amtStr = e.amount.toLocaleString('en-IN', { maximumFractionDigits: 2 });
+    const d      = entryDate(e);
     return `<div class="exp-item">
       <div class="exp-icon" style="color:var(--muted);">${cat.svg}</div>
       <div class="exp-info">
         <div class="exp-name">${label}</div>
-        <div class="exp-meta">${fmtDate(e.date)} · ${cat.label}</div>
+        <div class="exp-meta">${fmtDate(d)} · ${cat.label}</div>
       </div>
       <div class="exp-amt">-₹${amtStr}</div>
+      <div class="exp-actions">
+        <button class="exp-act-btn edit" onclick="editExpense(${e.id})" title="Edit">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+          </svg>
+        </button>
+        <button class="exp-act-btn del" onclick="deleteExpense(${e.id})" title="Delete">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+            <path d="M10 11v6"/><path d="M14 11v6"/>
+            <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+          </svg>
+        </button>
+      </div>
     </div>`;
   }).join('');
 }
@@ -680,6 +734,7 @@ function renderHome() {
 // ── ADD EXPENSE ──────────────────────────────────────────
 let rawVal  = '';
 let selCat  = 'food';
+let editId  = null;
 
 function buildCatPicker() {
   const row = document.getElementById('cat-row');
@@ -720,9 +775,14 @@ function handleKey(k) {
 }
 
 function resetAdd() {
+  editId = null;
   rawVal = '';
   selCat = 'food';
   document.getElementById('add-note').value = '';
+  const dateEl = document.getElementById('add-date');
+  dateEl.value = todayKey();
+  dateEl.max   = todayKey();
+  document.getElementById('add-form-title').textContent = 'Add Expense';
   syncDisplay();
   buildCatPicker();
 }
@@ -732,24 +792,53 @@ function saveExpense() {
   if (!amount || amount <= 0) return;
 
   const note = document.getElementById('add-note').value.trim();
+  const date = document.getElementById('add-date').value || todayKey();
   const arr  = loadExp();
-  arr.push({
-    id:       Date.now(),
-    date:     todayKey(),
-    category: selCat,
-    amount:   Math.round(amount * 100) / 100,
-    note,
-  });
+
+  if (editId !== null) {
+    const idx = arr.findIndex(e => e.id === editId);
+    if (idx !== -1) {
+      arr[idx] = { ...arr[idx], date, category: selCat, amount: Math.round(amount * 100) / 100, note };
+    }
+  } else {
+    arr.push({ id: Date.now(), date, category: selCat, amount: Math.round(amount * 100) / 100, note });
+  }
   saveExp(arr);
 
-  // Feedback then go home
+  const isEdit = editId !== null;
   const btn = document.getElementById('save-btn');
-  btn.textContent = '✓ Saved!';
+  btn.textContent = isEdit ? '✓ Updated!' : '✓ Saved!';
   btn.disabled = true;
+  editId = null;
   setTimeout(() => {
     switchTab('home');
-    showToast('Expense saved!');
+    showToast(isEdit ? 'Expense updated!' : 'Expense saved!');
   }, 550);
+}
+
+function editExpense(id) {
+  const entry = loadExp().find(e => e.id === id);
+  if (!entry) return;
+
+  editId = id;
+  rawVal = String(entry.amount);
+  selCat = entry.category;
+
+  switchTab('add'); // editId is set → won't call resetAdd
+
+  document.getElementById('add-note').value = entry.note || '';
+  const dateEl = document.getElementById('add-date');
+  dateEl.value = entryDate(entry);
+  dateEl.max   = todayKey();
+  document.getElementById('add-form-title').textContent = 'Edit Expense';
+  syncDisplay();
+}
+
+function deleteExpense(id) {
+  if (!confirm('Delete this expense?')) return;
+  saveExp(loadExp().filter(e => e.id !== id));
+  renderHome();
+  showToast('Expense deleted!');
 }
 
 // ── BUDGET ───────────────────────────────────────────────
