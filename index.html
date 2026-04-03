@@ -54,29 +54,6 @@
       position: relative;
     }
 
-    /* ── Splash ── */
-    #splash {
-      position: fixed;
-      inset: 0;
-      background: var(--bg);
-      z-index: 100;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: space-between;
-      padding: 56px 28px 52px;
-      max-width: 430px;
-      margin: 0 auto;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 100%;
-      transition: opacity 0.45s ease, transform 0.45s ease;
-    }
-    #splash.hide {
-      opacity: 0;
-      transform: translateX(-50%) translateY(18px);
-      pointer-events: none;
-    }
 
     /* ── Main / Tabs ── */
     #main {
@@ -104,8 +81,9 @@
 
     .nav-btn {
       display: flex; flex-direction: column; align-items: center; gap: 3px;
+      justify-content: flex-start;
       background: none; border: none; cursor: pointer;
-      color: var(--dim); padding: 8px 18px;
+      color: var(--dim); padding: 10px 18px 4px;
       font-size: 10px; letter-spacing: 0.5px;
       transition: color 0.2s ease, transform 0.12s ease;
     }
@@ -192,7 +170,7 @@
       border-color: var(--accent); color: var(--accent);
       background: var(--accent-dim);
     }
-    .cat-emoji { font-size: 22px; line-height: 1; }
+    .cat-emoji { display: flex; align-items: center; justify-content: center; width: 22px; height: 22px; }
 
     /* ── Expense item ── */
     .exp-item {
@@ -275,89 +253,11 @@
 </head>
 <body>
 
-<!-- ══════════════════════════════════
-     SPLASH
-══════════════════════════════════ -->
-<div id="splash">
-
-  <!-- Wordmark -->
-  <div style="text-align:center;">
-    <div style="display:inline-flex;align-items:center;gap:10px;margin-bottom:10px;">
-      <svg width="38" height="38" viewBox="0 0 38 38" fill="none">
-        <rect width="38" height="38" rx="11" fill="rgba(0,229,160,0.12)"/>
-        <path d="M19 8 C13.477 8 9 12.477 9 18 S13.477 28 19 28 S29 23.523 29 18 S24.523 8 19 8Z" fill="rgba(0,229,160,0.18)"/>
-        <text x="19" y="23" text-anchor="middle" font-size="15" font-weight="900" fill="#00E5A0" font-family="monospace">₹</text>
-      </svg>
-      <span style="font-size:30px;font-weight:900;letter-spacing:-0.6px;color:#F2F2F2;">FinBuddy</span>
-    </div>
-    <p style="font-size:12px;color:#555;letter-spacing:1.2px;text-transform:uppercase;">Your Money · Your Control</p>
-  </div>
-
-  <!-- Illustration -->
-  <div style="flex:1;display:flex;align-items:center;justify-content:center;">
-    <svg width="270" height="270" viewBox="0 0 270 270" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <!-- Ambient glow -->
-      <circle cx="135" cy="135" r="108" fill="rgba(0,229,160,0.04)"/>
-      <circle cx="135" cy="135" r="98"  stroke="#1E1E1E" stroke-width="1"/>
-
-      <!-- Big card -->
-      <rect x="52" y="82" width="166" height="106" rx="18" fill="#1A1A1A" stroke="#2A2A2A" stroke-width="1.5"/>
-      <!-- Card header band -->
-      <rect x="52" y="82" width="166" height="34" rx="18" fill="#222"/>
-      <rect x="52" y="100" width="166" height="16" fill="#222"/>
-      <!-- Card chip -->
-      <rect x="70" y="91" width="24" height="16" rx="4" fill="#00E5A0" fill-opacity="0.55"/>
-      <!-- Card text lines -->
-      <rect x="70" y="124" width="60" height="7" rx="3.5" fill="#2E2E2E"/>
-      <rect x="70" y="138" width="40" height="6" rx="3" fill="#2A2A2A"/>
-      <!-- Rupee symbol on card -->
-      <text x="192" y="148" text-anchor="middle" font-size="26" font-weight="900" fill="#00E5A0" font-opacity="0.9" font-family="monospace">₹</text>
-
-      <!-- Floating coins -->
-      <ellipse cx="188" cy="170" rx="20" ry="7.5" fill="rgba(0,229,160,0.55)"/>
-      <ellipse cx="188" cy="164" rx="20" ry="7.5" fill="rgba(0,229,160,0.75)"/>
-      <ellipse cx="188" cy="158" rx="20" ry="7.5" fill="#00E5A0"/>
-      <text x="188" y="162" text-anchor="middle" font-size="9" font-weight="800" fill="#000" font-family="monospace">₹</text>
-
-      <!-- Bar chart -->
-      <rect x="72"  y="205" width="15" height="26" rx="4" fill="rgba(0,229,160,0.35)"/>
-      <rect x="92"  y="194" width="15" height="37" rx="4" fill="rgba(0,229,160,0.50)"/>
-      <rect x="112" y="186" width="15" height="45" rx="4" fill="rgba(0,229,160,0.70)"/>
-      <rect x="132" y="196" width="15" height="35" rx="4" fill="rgba(0,229,160,0.55)"/>
-      <rect x="152" y="188" width="15" height="43" rx="4" fill="#00E5A0"/>
-
-      <!-- Trend line -->
-      <polyline points="79,220 99,208 119,199 139,209 159,200" stroke="#00E5A0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke-opacity="0.6"/>
-
-      <!-- Sparkles -->
-      <circle cx="48"  cy="76"  r="3"   fill="#00E5A0" fill-opacity="0.5"/>
-      <circle cx="222" cy="68"  r="2.5" fill="#00E5A0" fill-opacity="0.4"/>
-      <circle cx="230" cy="192" r="4"   fill="#00E5A0" fill-opacity="0.3"/>
-      <circle cx="38"  cy="178" r="2.5" fill="#00E5A0" fill-opacity="0.35"/>
-      <circle cx="215" cy="145" r="3"   fill="#00E5A0" fill-opacity="0.25"/>
-    </svg>
-  </div>
-
-  <!-- Tagline + CTA -->
-  <div style="width:100%;text-align:center;">
-    <p style="font-size:27px;font-weight:900;line-height:1.22;margin-bottom:8px;letter-spacing:-0.4px;">
-      Track Your <span style="color:#00E5A0;">Expenses</span><br>
-      And Control Your<br>Wallet Everywhere.
-    </p>
-    <p style="font-size:14px;color:#555;margin-bottom:34px;">Simple · Fast · Offline-first</p>
-    <button id="splash-cta" class="btn-accent"
-      style="width:100%;padding:18px;font-size:17px;border-radius:16px;letter-spacing:0.2px;
-             box-shadow:0 8px 32px rgba(0,229,160,0.38);">
-      Let's Start →
-    </button>
-  </div>
-</div>
-
 
 <!-- ══════════════════════════════════
      APP SHELL
 ══════════════════════════════════ -->
-<div id="app" style="display:none;">
+<div id="app" style="display:flex;">
 
   <div id="main">
 
@@ -596,12 +496,12 @@ const EXP_KEY  = 'vt_expenses';
 const BUD_KEY  = 'vt_budgets';
 
 const CATS = [
-  { id: 'food',          label: 'Food',          emoji: '🍔' },
-  { id: 'transport',     label: 'Transport',     emoji: '🚗' },
-  { id: 'college',       label: 'College',       emoji: '🎓' },
-  { id: 'entertainment', label: 'Entertainment', emoji: '🎮' },
-  { id: 'health',        label: 'Health',        emoji: '💊' },
-  { id: 'other',         label: 'Other',         emoji: '📦' },
+  { id: 'food',          label: 'Food',          svg: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/></svg>' },
+  { id: 'transport',     label: 'Transport',     svg: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19 17H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h11l4 4v4a2 2 0 0 1-2 2Z"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/><path d="M5 9h11"/></svg>' },
+  { id: 'college',       label: 'College',       svg: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>' },
+  { id: 'entertainment', label: 'Entertainment', svg: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="12" x2="10" y2="12"/><line x1="8" y1="10" x2="8" y2="14"/><line x1="15" y1="13" x2="15.01" y2="13"/><line x1="18" y1="11" x2="18.01" y2="11"/><rect x="2" y="6" width="20" height="12" rx="2"/></svg>' },
+  { id: 'health',        label: 'Health',        svg: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>' },
+  { id: 'other',         label: 'Other',         svg: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16.5 9.4 7.55 4.24"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.29 7 12 12 20.71 7"/><line x1="12" y1="22" x2="12" y2="12"/></svg>' },
 ];
 
 // ── Data helpers ─────────────────────────────────────────
@@ -660,11 +560,18 @@ function escH(s) {
 function initPWA() {
   const iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192">
     <rect width="192" height="192" rx="40" fill="#0D0D0D"/>
-    <rect x="16" y="16" width="160" height="160" rx="32" fill="#1A1A1A"/>
-    <text x="96" y="130" text-anchor="middle" font-size="96" font-family="serif">💰</text>
-    <rect x="16" y="152" width="160" height="8" rx="4" fill="#00E5A0"/>
+    <rect x="10" y="10" width="172" height="172" rx="34" fill="#1A1A1A" stroke="#2A2A2A" stroke-width="2"/>
+    <text x="96" y="118" text-anchor="middle" font-size="86" font-weight="900" fill="#00E5A0" font-family="'SF Pro Display','Segoe UI',sans-serif" letter-spacing="-4">FB</text>
+    <rect x="36" y="138" width="120" height="4" rx="2" fill="#00E5A0" opacity="0.5"/>
   </svg>`;
   const iconUrl = 'data:image/svg+xml,' + encodeURIComponent(iconSvg);
+
+  // Favicon
+  const favEl = document.createElement('link');
+  favEl.rel  = 'icon';
+  favEl.type = 'image/svg+xml';
+  favEl.href = iconUrl;
+  document.head.appendChild(favEl);
 
   const manifest = {
     name: 'FinBuddy',
@@ -760,7 +667,7 @@ function renderHome() {
     const label = e.note ? escH(e.note) : cat.label;
     const amtStr = e.amount.toLocaleString('en-IN', { maximumFractionDigits: 2 });
     return `<div class="exp-item">
-      <div class="exp-icon">${cat.emoji}</div>
+      <div class="exp-icon" style="color:var(--muted);">${cat.svg}</div>
       <div class="exp-info">
         <div class="exp-name">${label}</div>
         <div class="exp-meta">${fmtDate(e.date)} · ${cat.label}</div>
@@ -778,7 +685,7 @@ function buildCatPicker() {
   const row = document.getElementById('cat-row');
   row.innerHTML = CATS.map(c => `
     <button class="cat-pill${c.id === selCat ? ' sel' : ''}" data-cat="${c.id}">
-      <span class="cat-emoji">${c.emoji}</span>
+      <span class="cat-emoji">${c.svg}</span>
       <span>${c.label}</span>
     </button>`).join('');
 
@@ -866,7 +773,7 @@ function renderBudget() {
     return `<div class="card" style="padding:15px;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:11px;">
         <div style="display:flex;align-items:center;gap:10px;">
-          <span style="font-size:22px;">${cat.emoji}</span>
+          <span style="display:flex;align-items:center;color:var(--muted);width:22px;height:22px;">${cat.svg}</span>
           <div>
             <p style="font-size:14px;font-weight:700;">${cat.label}</p>
             <p style="font-size:11px;color:var(--muted);">Spent: ${fmtAmt(spent)}</p>
@@ -921,7 +828,7 @@ function renderExport() {
     const s = catMonthSpend(cat.id, mk);
     if (!s) return '';
     return `<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
-      <span style="font-size:16px;width:22px;">${cat.emoji}</span>
+      <span style="display:flex;align-items:center;color:var(--muted);width:22px;height:22px;">${cat.svg}</span>
       <span style="font-size:13px;flex:1;color:var(--muted);">${cat.label}</span>
       <span class="mono" style="font-size:14px;">${fmtAmt(s)}</span>
     </div>`;
@@ -968,17 +875,7 @@ function showToast(msg) {
 // ── Boot ─────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   initPWA();
-
-  // Splash CTA
-  document.getElementById('splash-cta').addEventListener('click', () => {
-    const splash = document.getElementById('splash');
-    splash.classList.add('hide');
-    setTimeout(() => {
-      splash.style.display = 'none';
-      document.getElementById('app').style.display = 'flex';
-      renderHome();
-    }, 460);
-  });
+  renderHome();
 
   // All data-tab nav buttons
   document.querySelectorAll('[data-tab]').forEach(btn => {
