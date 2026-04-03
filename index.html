@@ -10,6 +10,7 @@
   <title>FinBuddy</title>
   <link id="pwa-manifest" rel="manifest" href="">
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <style>
     :root {
       --bg:         #0D0D0D;
@@ -273,6 +274,21 @@
       transition: opacity 0.22s ease, transform 0.22s ease;
     }
     #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    /* ── Chart containers ── */
+    .chart-wrap {
+      position: relative; height: 210px;
+    }
+
+    /* ── Add-category form ── */
+    .add-cat-input {
+      background: var(--float); border: 1px solid var(--border);
+      border-radius: 10px; color: var(--text);
+      font-size: 15px; padding: 10px 12px;
+      outline: none; transition: border-color 0.2s ease;
+    }
+    .add-cat-input:focus { border-color: var(--accent); }
+    .add-cat-input::placeholder { color: var(--dim); }
   </style>
 </head>
 <body>
@@ -421,6 +437,7 @@
           style="width:100%;padding:16px;font-size:16px;margin-top:22px;">
           Save Limits
         </button>
+
       </div>
     </div>
     <!-- /BUDGET -->
@@ -467,6 +484,35 @@
     </div>
     <!-- /EXPORT -->
 
+
+    <!-- ═══ STATS ═══ -->
+    <div id="tab-stats" class="tab-panel">
+      <div style="padding:20px 18px 0;">
+        <h2 style="font-size:20px;font-weight:900;padding-top:10px;margin-bottom:20px;">Analytics</h2>
+
+        <!-- Category doughnut chart -->
+        <div class="card" style="padding:16px;margin-bottom:12px;">
+          <p class="sec-label" style="margin-bottom:12px;">This Month by Category</p>
+          <div class="chart-wrap" style="height:220px;">
+            <canvas id="chart-cat"></canvas>
+          </div>
+          <div id="chart-cat-legend" style="margin-top:14px;display:flex;flex-direction:column;gap:6px;"></div>
+        </div>
+
+        <!-- Daily spend line chart -->
+        <div class="card" style="padding:16px;margin-bottom:12px;">
+          <p class="sec-label" id="stats-daily-label" style="margin-bottom:12px;">Daily Spend</p>
+          <div class="chart-wrap">
+            <canvas id="chart-daily"></canvas>
+          </div>
+          <p style="font-size:11px;color:var(--muted);margin-top:8px;text-align:center;">
+            <span style="display:inline-block;width:10px;height:10px;background:var(--orange);border-radius:50%;margin-right:4px;vertical-align:middle;"></span>Highest spend day
+          </p>
+        </div>
+      </div>
+    </div>
+    <!-- /STATS -->
+
   </div><!-- /#main -->
 
 
@@ -508,6 +554,14 @@
       </svg>
       <span>Export</span>
     </button>
+
+    <button class="nav-btn" id="nav-stats" data-tab="stats">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+      </svg>
+      <span>Stats</span>
+    </button>
   </nav>
 
 </div><!-- /#app -->
@@ -524,21 +578,41 @@
 // ── Constants ────────────────────────────────────────────
 const EXP_KEY  = 'vt_expenses';
 const BUD_KEY  = 'vt_budgets';
+const CAT_KEY  = 'finbuddy_categories';
 
-const CATS = [
-  { id: 'food',          label: 'Food',          svg: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/></svg>' },
-  { id: 'transport',     label: 'Transport',     svg: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19 17H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h11l4 4v4a2 2 0 0 1-2 2Z"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/><path d="M5 9h11"/></svg>' },
-  { id: 'college',       label: 'College',       svg: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>' },
-  { id: 'entertainment', label: 'Entertainment', svg: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="12" x2="10" y2="12"/><line x1="8" y1="10" x2="8" y2="14"/><line x1="15" y1="13" x2="15.01" y2="13"/><line x1="18" y1="11" x2="18.01" y2="11"/><rect x="2" y="6" width="20" height="12" rx="2"/></svg>' },
-  { id: 'health',        label: 'Health',        svg: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>' },
-  { id: 'other',         label: 'Other',         svg: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16.5 9.4 7.55 4.24"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.29 7 12 12 20.71 7"/><line x1="12" y1="22" x2="12" y2="12"/></svg>' },
+const BUILTIN_CATS = [
+  { id: 'food',          label: 'Food',          svg: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/></svg>',          builtIn: true },
+  { id: 'transport',     label: 'Transport',     svg: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19 17H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h11l4 4v4a2 2 0 0 1-2 2Z"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/><path d="M5 9h11"/></svg>',     builtIn: true },
+  { id: 'college',       label: 'College',       svg: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>',       builtIn: true },
+  { id: 'fees',          label: 'Fees',          svg: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="22" x2="21" y2="22"/><line x1="6" y1="18" x2="6" y2="11"/><line x1="10" y1="18" x2="10" y2="11"/><line x1="14" y1="18" x2="14" y2="11"/><line x1="18" y1="18" x2="18" y2="11"/><polygon points="12 2 20 7 4 7"/></svg>',          builtIn: true },
+  { id: 'entertainment', label: 'Entertainment', svg: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="12" x2="10" y2="12"/><line x1="8" y1="10" x2="8" y2="14"/><line x1="15" y1="13" x2="15.01" y2="13"/><line x1="18" y1="11" x2="18.01" y2="11"/><rect x="2" y="6" width="20" height="12" rx="2"/></svg>', builtIn: true },
+  { id: 'health',        label: 'Health',        svg: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>',        builtIn: true },
+  { id: 'shopping',      label: 'Shopping',      svg: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>',      builtIn: true },
+  { id: 'recharge',      label: 'Recharge',      svg: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>',      builtIn: true },
+  { id: 'other',         label: 'Other',         svg: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16.5 9.4 7.55 4.24"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.29 7 12 12 20.71 7"/><line x1="12" y1="22" x2="12" y2="12"/></svg>',         builtIn: true },
 ];
+let CATS = [];
 
 // ── Data helpers ─────────────────────────────────────────
 function loadExp()  { try { return JSON.parse(localStorage.getItem(EXP_KEY))  || []; } catch { return []; } }
 function saveExp(a) { localStorage.setItem(EXP_KEY, JSON.stringify(a)); }
 function loadBud()  { try { return JSON.parse(localStorage.getItem(BUD_KEY))  || {}; } catch { return {}; } }
 function saveBud(o) { localStorage.setItem(BUD_KEY, JSON.stringify(o)); }
+function loadCats() { try { return JSON.parse(localStorage.getItem(CAT_KEY)) || []; } catch { return []; } }
+function saveCats(a) { localStorage.setItem(CAT_KEY, JSON.stringify(a)); }
+
+function initCategories() {
+  const stored = loadCats();
+  const custom  = stored.filter(c => !c.builtIn);   // preserve user-added categories
+  const merged  = [...BUILTIN_CATS, ...custom];      // built-ins always fresh + ordered
+  saveCats(merged);
+  CATS = merged;
+}
+
+function catIcon(cat, size = 20) {
+  if (cat && cat.svg) return cat.svg;
+  return `<span style="font-size:${size}px;line-height:1;">${escH((cat && cat.emoji) || '?')}</span>`;
+}
 
 function todayKey(d = new Date()) {
   return d.toISOString().slice(0, 10);
@@ -596,19 +670,11 @@ function escH(s) {
 
 // ── PWA ──────────────────────────────────────────────────
 function initPWA() {
-  const iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192">
-    <rect width="192" height="192" rx="40" fill="#0D0D0D"/>
-    <rect x="10" y="10" width="172" height="172" rx="34" fill="#1A1A1A" stroke="#2A2A2A" stroke-width="2"/>
-    <text x="96" y="118" text-anchor="middle" font-size="86" font-weight="900" fill="#00E5A0" font-family="'SF Pro Display','Segoe UI',sans-serif" letter-spacing="-4">FB</text>
-    <rect x="36" y="138" width="120" height="4" rx="2" fill="#00E5A0" opacity="0.5"/>
-  </svg>`;
-  const iconUrl = 'data:image/svg+xml,' + encodeURIComponent(iconSvg);
-
   // Favicon
   const favEl = document.createElement('link');
   favEl.rel  = 'icon';
-  favEl.type = 'image/svg+xml';
-  favEl.href = iconUrl;
+  favEl.type = 'image/png';
+  favEl.href = 'Logo.png';
   document.head.appendChild(favEl);
 
   const manifest = {
@@ -621,8 +687,8 @@ function initPWA() {
     theme_color: '#0D0D0D',
     orientation: 'portrait-primary',
     icons: [
-      { src: iconUrl, sizes: '192x192', type: 'image/svg+xml', purpose: 'any maskable' },
-      { src: iconUrl, sizes: '512x512', type: 'image/svg+xml', purpose: 'any maskable' },
+      { src: 'Logo.png', sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
+      { src: 'Logo.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
     ],
   };
 
@@ -664,6 +730,7 @@ function switchTab(id) {
   if (id === 'home')   renderHome();
   if (id === 'budget') renderBudget();
   if (id === 'export') renderExport();
+  if (id === 'stats')  renderStats();
   if (id === 'add')    { if (editId === null) resetAdd(); else buildCatPicker(); }
 }
 
@@ -701,12 +768,15 @@ function renderHome() {
   emptyEl.style.display = 'none';
 
   listEl.innerHTML = recent.map(e => {
-    const cat    = CATS.find(c => c.id === e.category) || CATS[5];
-    const label  = e.note ? escH(e.note) : cat.label;
+    const cat    = CATS.find(c => c.id === e.category)
+                || CATS.find(c => c.id === 'other')
+                || CATS[0]
+                || { id: e.category, label: e.category, svg: null, emoji: '?' };
+    const label  = e.note ? escH(e.note) : escH(cat.label);
     const amtStr = e.amount.toLocaleString('en-IN', { maximumFractionDigits: 2 });
     const d      = entryDate(e);
     return `<div class="exp-item">
-      <div class="exp-icon" style="color:var(--muted);">${cat.svg}</div>
+      <div class="exp-icon" style="color:var(--muted);">${catIcon(cat)}</div>
       <div class="exp-info">
         <div class="exp-name">${label}</div>
         <div class="exp-meta">${fmtDate(d)} · ${cat.label}</div>
@@ -740,7 +810,7 @@ function buildCatPicker() {
   const row = document.getElementById('cat-row');
   row.innerHTML = CATS.map(c => `
     <button class="cat-pill${c.id === selCat ? ' sel' : ''}" data-cat="${c.id}">
-      <span class="cat-emoji">${c.svg}</span>
+      <span class="cat-emoji">${catIcon(c)}</span>
       <span>${c.label}</span>
     </button>`).join('');
 
@@ -777,7 +847,7 @@ function handleKey(k) {
 function resetAdd() {
   editId = null;
   rawVal = '';
-  selCat = 'food';
+  selCat = CATS.find(c => c.id === 'food') ? 'food' : (CATS[0]?.id || 'food');
   document.getElementById('add-note').value = '';
   const dateEl = document.getElementById('add-date');
   dateEl.value = todayKey();
@@ -858,13 +928,20 @@ function renderBudget() {
              (${Math.round((spent/limit)*100)}%)
            </span>
          </p>` : '';
+    const delBtn = !cat.builtIn
+      ? `<button class="exp-act-btn del" onclick="deleteCategory('${escH(cat.id)}')" title="Delete category" style="margin-left:4px;">
+           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+             <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+             <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+           </svg>
+         </button>` : '';
 
     return `<div class="card" style="padding:15px;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:11px;">
         <div style="display:flex;align-items:center;gap:10px;">
-          <span style="display:flex;align-items:center;color:var(--muted);width:22px;height:22px;">${cat.svg}</span>
+          <span style="display:flex;align-items:center;color:var(--muted);width:22px;height:22px;">${catIcon(cat)}</span>
           <div>
-            <p style="font-size:14px;font-weight:700;">${cat.label}</p>
+            <p style="font-size:14px;font-weight:700;">${escH(cat.label)}</p>
             <p style="font-size:11px;color:var(--muted);">Spent: ${fmtAmt(spent)}</p>
           </div>
         </div>
@@ -874,6 +951,7 @@ function renderBudget() {
             placeholder="No limit"
             value="${limit > 0 ? limit : ''}"
             id="bi-${cat.id}" data-cat="${cat.id}">
+          ${delBtn}
         </div>
       </div>
       <div class="progress-track">
@@ -893,6 +971,21 @@ function saveBudgets() {
   saveBud(obj);
   renderBudget();
   showToast('Limits saved!');
+}
+
+function deleteCategory(id) {
+  const uses = loadExp().filter(e => e.category === id).length;
+  if (uses > 0) {
+    showToast(`Can't delete — ${uses} expense${uses > 1 ? 's' : ''} use this`);
+    return;
+  }
+  if (!confirm('Delete this category?')) return;
+  saveCats(loadCats().filter(c => c.id !== id));
+  CATS = loadCats();
+  if (selCat === id) selCat = CATS[0]?.id || 'food';
+  renderBudget();
+  buildCatPicker();
+  showToast('Category deleted!');
 }
 
 // ── EXPORT ───────────────────────────────────────────────
@@ -917,8 +1010,8 @@ function renderExport() {
     const s = catMonthSpend(cat.id, mk);
     if (!s) return '';
     return `<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
-      <span style="display:flex;align-items:center;color:var(--muted);width:22px;height:22px;">${cat.svg}</span>
-      <span style="font-size:13px;flex:1;color:var(--muted);">${cat.label}</span>
+      <span style="display:flex;align-items:center;color:var(--muted);width:22px;height:22px;">${catIcon(cat)}</span>
+      <span style="font-size:13px;flex:1;color:var(--muted);">${escH(cat.label)}</span>
       <span class="mono" style="font-size:14px;">${fmtAmt(s)}</span>
     </div>`;
   }).join('');
@@ -951,6 +1044,141 @@ function downloadCSV() {
   showToast('CSV downloaded!');
 }
 
+// ── STATS ────────────────────────────────────────────────
+let chartCat = null, chartDaily = null;
+
+const DOUGHNUT_COLORS = [
+  '#00E5A0','#FF9500','#FF6B6B','#A78BFA',
+  '#38BDF8','#4ADE80','#F472B6','#FB923C','#94A3B8',
+];
+
+function renderStats() {
+  const mk  = monthKey();
+  const all = loadExp().filter(e => entryDate(e).startsWith(mk));
+
+  document.getElementById('stats-daily-label').textContent = 'Daily Spend — ' + fmtMonth(mk);
+
+  // ── Doughnut chart ──────────────────────────────────────
+  const catData = CATS
+    .map((c, i) => ({ label: c.label, value: all.filter(e => e.category === c.id).reduce((s, e) => s + e.amount, 0), color: DOUGHNUT_COLORS[i % DOUGHNUT_COLORS.length] }))
+    .filter(c => c.value > 0);
+
+  if (chartCat) { chartCat.destroy(); chartCat = null; }
+
+  const legendEl = document.getElementById('chart-cat-legend');
+
+  if (catData.length === 0) {
+    legendEl.innerHTML = '<p style="font-size:13px;color:var(--dim);text-align:center;padding:8px 0;">No expenses this month yet</p>';
+  } else {
+    const monthlyTotal = catData.reduce((s, c) => s + c.value, 0);
+
+    const centerTextPlugin = {
+      id: 'centerText',
+      afterDraw(chart) {
+        const { width, height, ctx } = chart;
+        const cx = width / 2, cy = height / 2;
+        ctx.save();
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#F2F2F2';
+        ctx.font = "700 17px 'SF Mono','Fira Code','Courier New',monospace";
+        ctx.fillText(fmtAmt(monthlyTotal), cx, cy - 10);
+        ctx.fillStyle = '#666';
+        ctx.font = "11px -apple-system,'Segoe UI',sans-serif";
+        ctx.fillText('this month', cx, cy + 10);
+        ctx.restore();
+      },
+    };
+
+    chartCat = new Chart(document.getElementById('chart-cat'), {
+      type: 'doughnut',
+      data: {
+        labels: catData.map(c => c.label),
+        datasets: [{
+          data:            catData.map(c => c.value),
+          backgroundColor: catData.map(c => c.color),
+          borderColor:     '#1A1A1A',
+          borderWidth:     2,
+          hoverOffset:     6,
+        }],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        cutout: '62%',
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: ctx => ` ${ctx.label}: ₹${ctx.raw.toLocaleString('en-IN')}`,
+            },
+          },
+        },
+      },
+      plugins: [centerTextPlugin],
+    });
+
+    legendEl.innerHTML = catData.map(c =>
+      `<div style="display:flex;align-items:center;gap:8px;">
+        <span style="width:10px;height:10px;border-radius:50%;background:${c.color};flex-shrink:0;"></span>
+        <span style="font-size:12px;color:var(--muted);flex:1;">${escH(c.label)}</span>
+        <span style="font-size:12px;font-family:'SF Mono',monospace;font-weight:700;">${fmtAmt(c.value)}</span>
+      </div>`
+    ).join('');
+  }
+
+  // ── Line chart ──────────────────────────────────────────
+  const [y, m] = mk.split('-');
+  const days   = new Date(+y, +m, 0).getDate();
+  const dailyAmt = Array.from({ length: days }, (_, i) => {
+    const d = mk + '-' + String(i + 1).padStart(2, '0');
+    return all.filter(e => entryDate(e) === d).reduce((s, e) => s + e.amount, 0);
+  });
+  const maxAmt = Math.max(...dailyAmt, 0);
+
+  if (chartDaily) { chartDaily.destroy(); chartDaily = null; }
+  chartDaily = new Chart(document.getElementById('chart-daily'), {
+    type: 'line',
+    data: {
+      labels: Array.from({ length: days }, (_, i) => i + 1),
+      datasets: [{
+        data:                 dailyAmt,
+        borderColor:          '#00E5A0',
+        borderWidth:          2,
+        tension:              0.3,
+        fill:                 true,
+        backgroundColor:      'rgba(0,229,160,0.08)',
+        pointRadius:          dailyAmt.map(v => (v > 0 && v === maxAmt) ? 7 : 4),
+        pointBackgroundColor: dailyAmt.map(v => (v > 0 && v === maxAmt) ? '#FF9500' : '#00E5A0'),
+        pointBorderColor:     '#FFFFFF',
+        pointBorderWidth:     2,
+        pointHoverRadius:     8,
+      }],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => ' ₹' + ctx.raw.toLocaleString('en-IN') } },
+      },
+      scales: {
+        x: {
+          grid: { color: 'rgba(255,255,255,0.05)' },
+          ticks: {
+            color: '#888',
+            font: { size: 10 },
+            maxRotation: 0,
+            callback: (_, i) => { const d = i + 1; return (d === 1 || d % 5 === 0) ? d : ''; },
+          },
+        },
+        y: {
+          grid: { color: 'rgba(255,255,255,0.05)' },
+          ticks: { color: '#888', callback: v => '₹' + v },
+        },
+      },
+    },
+  });
+}
+
 // ── Toast ────────────────────────────────────────────────
 let toastTm;
 function showToast(msg) {
@@ -964,6 +1192,13 @@ function showToast(msg) {
 // ── Boot ─────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   initPWA();
+  initCategories();
+
+  // Chart.js dark defaults
+  Chart.defaults.color = '#888';
+  Chart.defaults.borderColor = '#2A2A2A';
+  Chart.defaults.font.family = "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+
   renderHome();
 
   // All data-tab nav buttons
