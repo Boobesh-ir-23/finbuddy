@@ -481,6 +481,22 @@
         <p style="text-align:center;font-size:12px;color:var(--dim);margin-top:10px;">
           Saves a .csv file to your device
         </p>
+
+        <div class="card" style="padding:16px;margin-top:18px;">
+          <p class="sec-label" style="margin-bottom:12px;">Full Backup</p>
+          <button id="backup-export-btn" class="btn-accent"
+            style="width:100%;padding:16px;font-size:16px;margin-bottom:10px;">
+            Export Backup
+          </button>
+          <button id="backup-import-btn" class="btn-accent"
+            style="width:100%;padding:16px;font-size:16px;background:var(--float);color:var(--text);">
+            Import Backup
+          </button>
+          <input id="backup-file" type="file" accept="application/json,.json" style="display:none;">
+          <p style="text-align:center;font-size:12px;color:var(--dim);margin-top:10px;">
+            Backup includes expenses, budgets, and categories.
+          </p>
+        </div>
       </div>
     </div>
     <!-- /EXPORT -->
@@ -593,21 +609,53 @@ const BUILTIN_CATS = [
   { id: 'other',         label: 'Other',         svg: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16.5 9.4 7.55 4.24"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.29 7 12 12 20.71 7"/><line x1="12" y1="22" x2="12" y2="12"/></svg>',         builtIn: true },
 ];
 let CATS = [];
+const state = {
+  expenses: [],
+  budgets: {},
+  categories: [],
+};
 
 // ── Data helpers ─────────────────────────────────────────
-function loadExp()  { try { return JSON.parse(localStorage.getItem(EXP_KEY))  || []; } catch { return []; } }
-function saveExp(a) { localStorage.setItem(EXP_KEY, JSON.stringify(a)); }
-function loadBud()  { try { return JSON.parse(localStorage.getItem(BUD_KEY))  || {}; } catch { return {}; } }
-function saveBud(o) { localStorage.setItem(BUD_KEY, JSON.stringify(o)); }
-function loadCats() { try { return JSON.parse(localStorage.getItem(CAT_KEY)) || []; } catch { return []; } }
-function saveCats(a) { localStorage.setItem(CAT_KEY, JSON.stringify(a)); }
+function initState() {
+  try {
+    const expenses = JSON.parse(localStorage.getItem(EXP_KEY)) || [];
+    state.expenses = Array.isArray(expenses) ? expenses : [];
+  } catch {
+    state.expenses = [];
+  }
+
+  try {
+    const budgets = JSON.parse(localStorage.getItem(BUD_KEY)) || {};
+    state.budgets = budgets && typeof budgets === 'object' && !Array.isArray(budgets) ? budgets : {};
+  } catch {
+    state.budgets = {};
+  }
+
+  try {
+    const categories = JSON.parse(localStorage.getItem(CAT_KEY)) || [];
+    state.categories = Array.isArray(categories) ? categories : [];
+  } catch {
+    state.categories = [];
+  }
+}
+function saveExp() { localStorage.setItem(EXP_KEY, JSON.stringify(state.expenses)); }
+function saveBud(o) {
+  if (JSON.stringify(state.budgets) === JSON.stringify(o)) return;
+  state.budgets = o;
+  localStorage.setItem(BUD_KEY, JSON.stringify(state.budgets));
+}
+function saveCats(a) {
+  if (JSON.stringify(state.categories) === JSON.stringify(a)) return;
+  state.categories = a;
+  localStorage.setItem(CAT_KEY, JSON.stringify(state.categories));
+}
 
 function initCategories() {
-  const stored = loadCats();
+  const stored = state.categories;
   const custom  = stored.filter(c => !c.builtIn);   // preserve user-added categories
   const merged  = [...BUILTIN_CATS, ...custom];      // built-ins always fresh + ordered
   saveCats(merged);
-  CATS = merged;
+  CATS = state.categories;
 }
 
 function catIcon(cat, size = 20) {
@@ -626,15 +674,15 @@ function prevDay(n = 1) {
 }
 
 function monthTotal(mk = monthKey()) {
-  return loadExp().filter(e => e.date.startsWith(mk)).reduce((s, e) => s + e.amount, 0);
+  return state.expenses.filter(e => e.date.startsWith(mk)).reduce((s, e) => s + e.amount, 0);
 }
 function todayStats() {
   const tk = todayKey();
-  const arr = loadExp().filter(e => e.date === tk);
+  const arr = state.expenses.filter(e => e.date === tk);
   return { total: arr.reduce((s, e) => s + e.amount, 0), count: arr.length };
 }
 function recentExp(n = 12) {
-  return [...loadExp()]
+  return [...state.expenses]
     .sort((a, b) => {
       const d = entryDate(b).localeCompare(entryDate(a)); // newest date first
       return d !== 0 ? d : b.id - a.id;                  // same date: newer insertion first
@@ -642,7 +690,7 @@ function recentExp(n = 12) {
     .slice(0, n);
 }
 function catMonthSpend(catId, mk = monthKey()) {
-  return loadExp().filter(e => e.category === catId && e.date.startsWith(mk))
+  return state.expenses.filter(e => e.category === catId && e.date.startsWith(mk))
                   .reduce((s, e) => s + e.amount, 0);
 }
 
@@ -741,13 +789,13 @@ function renderHome() {
       </div>
       <div class="exp-amt">-₹${amtStr}</div>
       <div class="exp-actions">
-        <button class="exp-act-btn edit" onclick="editExpense(${e.id})" title="Edit">
+        <button class="exp-act-btn edit" data-action="edit" data-id="${escH(e.id)}" title="Edit">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
             <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
           </svg>
         </button>
-        <button class="exp-act-btn del" onclick="deleteExpense(${e.id})" title="Delete">
+        <button class="exp-act-btn del" data-action="delete" data-id="${escH(e.id)}" title="Delete">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
             <path d="M10 11v6"/><path d="M14 11v6"/>
@@ -787,6 +835,38 @@ function syncDisplay() {
   document.getElementById('save-btn').disabled = !(v > 0);
 }
 
+function validateExpenseInput() {
+  const amountText = rawVal.trim();
+  if (!amountText) return { error: 'Enter an amount before saving.' };
+
+  const amount = Number(amountText);
+  if (!Number.isFinite(amount) || amount <= 0) {
+    return { error: 'Amount must be a positive number.' };
+  }
+
+  if (!/^\d+(\.\d{1,2})?$/.test(amountText)) {
+    return { error: 'Amount can use up to 2 decimal places.' };
+  }
+
+  if (!CATS.some(c => c.id === selCat)) {
+    return { error: 'Choose a valid category.' };
+  }
+
+  const note = document.getElementById('add-note').value.trim();
+  if (note.length > 60) return { error: 'Note must be 60 characters or less.' };
+
+  const date = document.getElementById('add-date').value || todayKey();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    return { error: 'Choose a valid expense date.' };
+  }
+
+  if (date > todayKey()) {
+    return { error: 'Expense date cannot be in the future.' };
+  }
+
+  return { amount: Math.round(amount * 100) / 100, note, date };
+}
+
 function handleKey(k) {
   if (k === 'back') {
     rawVal = rawVal.slice(0, -1);
@@ -811,27 +891,36 @@ function resetAdd() {
   dateEl.value = todayKey();
   dateEl.max   = todayKey();
   document.getElementById('add-form-title').textContent = 'Add Expense';
+  document.getElementById('save-btn').textContent = 'Save Expense';
   syncDisplay();
   buildCatPicker();
 }
 
 function saveExpense() {
-  const amount = parseFloat(rawVal);
-  if (!amount || amount <= 0) return;
+  const validation = validateExpenseInput();
+  if (validation.error) {
+    showToast(validation.error);
+    return;
+  }
 
-  const note = document.getElementById('add-note').value.trim();
-  const date = document.getElementById('add-date').value || todayKey();
-  const arr  = loadExp();
+  const { amount, note, date } = validation;
+  let didChange = false;
 
   if (editId !== null) {
-    const idx = arr.findIndex(e => e.id === editId);
+    const idx = state.expenses.findIndex(e => e.id === editId);
     if (idx !== -1) {
-      arr[idx] = { ...arr[idx], date, category: selCat, amount: Math.round(amount * 100) / 100, note };
+      state.expenses[idx] = { ...state.expenses[idx], date, category: selCat, amount, note };
+      didChange = true;
     }
   } else {
-    arr.push({ id: Date.now(), date, category: selCat, amount: Math.round(amount * 100) / 100, note });
+    state.expenses.push({ id: Date.now(), date, category: selCat, amount, note });
+    didChange = true;
   }
-  saveExp(arr);
+  if (!didChange) {
+    showToast('Expense could not be saved. Please try again.');
+    return;
+  }
+  saveExp();
 
   const isEdit = editId !== null;
   const btn = document.getElementById('save-btn');
@@ -845,10 +934,10 @@ function saveExpense() {
 }
 
 function editExpense(id) {
-  const entry = loadExp().find(e => e.id === id);
+  const entry = state.expenses.find(e => String(e.id) === String(id));
   if (!entry) return;
 
-  editId = id;
+  editId = entry.id;
   rawVal = String(entry.amount);
   selCat = entry.category;
 
@@ -859,19 +948,35 @@ function editExpense(id) {
   dateEl.value = entryDate(entry);
   dateEl.max   = todayKey();
   document.getElementById('add-form-title').textContent = 'Edit Expense';
+  document.getElementById('save-btn').textContent = 'Update Expense';
   syncDisplay();
 }
 
 function deleteExpense(id) {
   if (!confirm('Delete this expense?')) return;
-  saveExp(loadExp().filter(e => e.id !== id));
+  const nextExpenses = state.expenses.filter(e => String(e.id) !== String(id));
+  if (nextExpenses.length === state.expenses.length) {
+    showToast('Expense was already removed.');
+    return;
+  }
+  state.expenses = nextExpenses;
+  saveExp();
   renderHome();
   showToast('Expense deleted!');
 }
 
+function handleExpenseListClick(event) {
+  const actionButton = event.target.closest('[data-action][data-id]');
+  if (!actionButton) return;
+
+  const { action, id } = actionButton.dataset;
+  if (action === 'edit') editExpense(id);
+  if (action === 'delete') deleteExpense(id);
+}
+
 // ── BUDGET ───────────────────────────────────────────────
 function renderBudget() {
-  const budgets = loadBud();
+  const budgets = state.budgets;
   const mk      = monthKey();
 
   document.getElementById('budget-list').innerHTML = CATS.map(cat => {
@@ -887,7 +992,7 @@ function renderBudget() {
            </span>
          </p>` : '';
     const delBtn = !cat.builtIn
-      ? `<button class="exp-act-btn del" onclick="deleteCategory('${escH(cat.id)}')" title="Delete category" style="margin-left:4px;">
+      ? `<button class="exp-act-btn del" data-category-action="delete" data-category-id="${escH(cat.id)}" title="Delete category" style="margin-left:4px;">
            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
              <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
              <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
@@ -932,23 +1037,32 @@ function saveBudgets() {
 }
 
 function deleteCategory(id) {
-  const uses = loadExp().filter(e => e.category === id).length;
+  const uses = state.expenses.filter(e => e.category === id).length;
   if (uses > 0) {
     showToast(`Can't delete — ${uses} expense${uses > 1 ? 's' : ''} use this`);
     return;
   }
   if (!confirm('Delete this category?')) return;
-  saveCats(loadCats().filter(c => c.id !== id));
-  CATS = loadCats();
+  saveCats(state.categories.filter(c => c.id !== id));
+  CATS = state.categories;
   if (selCat === id) selCat = CATS[0]?.id || 'food';
   renderBudget();
   buildCatPicker();
   showToast('Category deleted!');
 }
 
+function handleBudgetListClick(event) {
+  const actionButton = event.target.closest('[data-category-action][data-category-id]');
+  if (!actionButton) return;
+
+  if (actionButton.dataset.categoryAction === 'delete') {
+    deleteCategory(actionButton.dataset.categoryId);
+  }
+}
+
 // ── EXPORT ───────────────────────────────────────────────
 function renderExport() {
-  const all    = loadExp();
+  const all    = state.expenses;
   const total  = all.reduce((s, e) => s + e.amount, 0);
   const mk     = monthKey();
 
@@ -980,7 +1094,7 @@ function renderExport() {
 }
 
 function downloadCSV() {
-  const all = loadExp();
+  const all = state.expenses;
   if (!all.length) { showToast('No data to export'); return; }
 
   const sorted = [...all].sort((a, b) => a.date.localeCompare(b.date));
@@ -1001,6 +1115,116 @@ function downloadCSV() {
   showToast('CSV downloaded!');
 }
 
+function isPlainObject(value) {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function validateBackupData(data) {
+  if (!isPlainObject(data)) return 'Backup file must contain a JSON object.';
+
+  const expenses = data[EXP_KEY];
+  const budgets = data[BUD_KEY];
+  const categories = data[CAT_KEY];
+
+  if (!Array.isArray(expenses)) return `Missing or invalid ${EXP_KEY}.`;
+  if (!isPlainObject(budgets)) return `Missing or invalid ${BUD_KEY}.`;
+  if (!Array.isArray(categories)) return `Missing or invalid ${CAT_KEY}.`;
+
+  const hasInvalidExpense = expenses.some((expense) => {
+    return !isPlainObject(expense)
+      || !('id' in expense)
+      || typeof expense.date !== 'string'
+      || !/^\d{4}-\d{2}-\d{2}$/.test(expense.date)
+      || typeof expense.category !== 'string'
+      || !Number.isFinite(Number(expense.amount))
+      || Number(expense.amount) <= 0
+      || (expense.note !== undefined && typeof expense.note !== 'string');
+  });
+  if (hasInvalidExpense) return 'Backup contains invalid expense records.';
+
+  const hasInvalidBudget = Object.values(budgets).some((limit) => {
+    return !Number.isFinite(Number(limit)) || Number(limit) < 0;
+  });
+  if (hasInvalidBudget) return 'Backup contains invalid budget values.';
+
+  const hasInvalidCategory = categories.some((category) => {
+    return !isPlainObject(category)
+      || typeof category.id !== 'string'
+      || !category.id.trim()
+      || typeof category.label !== 'string'
+      || !category.label.trim();
+  });
+  if (hasInvalidCategory) return 'Backup contains invalid categories.';
+
+  return '';
+}
+
+function exportBackup() {
+  const backup = {
+    [EXP_KEY]: state.expenses,
+    [BUD_KEY]: state.budgets,
+    [CAT_KEY]: state.categories,
+  };
+  const json = JSON.stringify(backup, null, 2);
+  const a = document.createElement('a');
+  a.href = 'data:application/json;charset=utf-8,' + encodeURIComponent(json);
+  a.download = `finbuddy-backup-${todayKey()}.json`;
+  a.click();
+  showToast('Backup exported!');
+}
+
+function refreshAfterBackupImport() {
+  initState();
+  initCategories();
+  renderHome();
+  buildCatPicker();
+  syncDisplay();
+
+  if (curTab === 'budget') renderBudget();
+  if (curTab === 'export') renderExport();
+  if (curTab === 'stats') renderStats();
+  if (curTab === 'add') resetAdd();
+}
+
+function applyBackup(data) {
+  localStorage.setItem(EXP_KEY, JSON.stringify(data[EXP_KEY]));
+  localStorage.setItem(BUD_KEY, JSON.stringify(data[BUD_KEY]));
+  localStorage.setItem(CAT_KEY, JSON.stringify(data[CAT_KEY]));
+  refreshAfterBackupImport();
+}
+
+function importBackupFile(fileInput) {
+  const file = fileInput.files && fileInput.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const data = JSON.parse(reader.result);
+      const error = validateBackupData(data);
+      if (error) {
+        showToast(error);
+        return;
+      }
+
+      const ok = confirm('Importing this backup will replace all current expenses, budgets, and categories. Continue?');
+      if (!ok) return;
+
+      applyBackup(data);
+      showToast('Backup imported successfully!');
+    } catch {
+      showToast('Backup file is not valid JSON.');
+    } finally {
+      fileInput.value = '';
+    }
+  };
+  reader.onerror = () => {
+    showToast('Could not read backup file.');
+    fileInput.value = '';
+  };
+  reader.readAsText(file);
+}
+
 // ── STATS ────────────────────────────────────────────────
 let chartCat = null, chartDaily = null;
 
@@ -1009,20 +1233,49 @@ const DOUGHNUT_COLORS = [
   '#38BDF8','#4ADE80','#F472B6','#FB923C','#94A3B8',
 ];
 
+function drawChartFallback(canvasId, message) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+
+  const rect = canvas.getBoundingClientRect();
+  const ratio = window.devicePixelRatio || 1;
+  const width = rect.width || canvas.width || 300;
+  const height = rect.height || canvas.height || 180;
+  const ctx = canvas.getContext('2d');
+
+  canvas.width = width * ratio;
+  canvas.height = height * ratio;
+  ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+  ctx.clearRect(0, 0, width, height);
+  ctx.fillStyle = '#888';
+  ctx.font = "700 13px -apple-system,'Segoe UI',sans-serif";
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(message, width / 2, height / 2);
+}
+
 function renderStats() {
   const mk  = monthKey();
-  const all = loadExp().filter(e => entryDate(e).startsWith(mk));
+  const all = state.expenses.filter(e => entryDate(e).startsWith(mk));
+  const legendEl = document.getElementById('chart-cat-legend');
 
   document.getElementById('stats-daily-label').textContent = 'Daily Spend — ' + fmtMonth(mk);
 
   // ── Doughnut chart ──────────────────────────────────────
+  if (!window.Chart) {
+    chartCat = null;
+    chartDaily = null;
+    drawChartFallback('chart-cat', 'Charts unavailable');
+    drawChartFallback('chart-daily', 'Chart.js did not load');
+    legendEl.innerHTML = '<p style="font-size:13px;color:var(--dim);text-align:center;padding:8px 0;">Charts are unavailable right now. Your expense data is still saved.</p>';
+    return;
+  }
+
   const catData = CATS
     .map((c, i) => ({ label: c.label, value: all.filter(e => e.category === c.id).reduce((s, e) => s + e.amount, 0), color: DOUGHNUT_COLORS[i % DOUGHNUT_COLORS.length] }))
     .filter(c => c.value > 0);
 
   if (chartCat) { chartCat.destroy(); chartCat = null; }
-
-  const legendEl = document.getElementById('chart-cat-legend');
 
   if (catData.length === 0) {
     legendEl.innerHTML = '<p style="font-size:13px;color:var(--dim);text-align:center;padding:8px 0;">No expenses this month yet</p>';
@@ -1148,12 +1401,15 @@ function showToast(msg) {
 
 // ── Boot ─────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
+  initState();
   initCategories();
 
   // Chart.js dark defaults
-  Chart.defaults.color = '#888';
-  Chart.defaults.borderColor = '#2A2A2A';
-  Chart.defaults.font.family = "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+  if (window.Chart) {
+    Chart.defaults.color = '#888';
+    Chart.defaults.borderColor = '#2A2A2A';
+    Chart.defaults.font.family = "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+  }
 
   renderHome();
 
@@ -1170,11 +1426,24 @@ document.addEventListener('DOMContentLoaded', () => {
   // Save expense
   document.getElementById('save-btn').addEventListener('click', saveExpense);
 
+  // Generated list actions
+  document.getElementById('home-list').addEventListener('click', handleExpenseListClick);
+  document.getElementById('budget-list').addEventListener('click', handleBudgetListClick);
+
   // Budget save
   document.getElementById('budget-save-btn').addEventListener('click', saveBudgets);
 
   // CSV download
   document.getElementById('csv-btn').addEventListener('click', downloadCSV);
+
+  // Full backup import/export
+  document.getElementById('backup-export-btn').addEventListener('click', exportBackup);
+  document.getElementById('backup-import-btn').addEventListener('click', () => {
+    document.getElementById('backup-file').click();
+  });
+  document.getElementById('backup-file').addEventListener('change', (event) => {
+    importBackupFile(event.target);
+  });
 
   // Prime add form
   buildCatPicker();
