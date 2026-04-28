@@ -8,7 +8,8 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="FinBuddy">
   <title>FinBuddy</title>
-  <link id="pwa-manifest" rel="manifest" href="">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" href="Logo.png">
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <style>
@@ -668,49 +669,6 @@ function escH(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-// ── PWA ──────────────────────────────────────────────────
-function initPWA() {
-  // Favicon
-  const favEl = document.createElement('link');
-  favEl.rel  = 'icon';
-  favEl.type = 'image/png';
-  favEl.href = 'Logo.png';
-  document.head.appendChild(favEl);
-
-  const manifest = {
-    name: 'FinBuddy',
-    short_name: 'FinBuddy',
-    description: 'Personal expense tracker',
-    start_url: '.',
-    display: 'standalone',
-    background_color: '#0D0D0D',
-    theme_color: '#0D0D0D',
-    orientation: 'portrait-primary',
-    icons: [
-      { src: 'Logo.png', sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
-      { src: 'Logo.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
-    ],
-  };
-
-  const mBlob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
-  document.getElementById('pwa-manifest').href = URL.createObjectURL(mBlob);
-
-  if ('serviceWorker' in navigator) {
-    const sw = `
-const C='finbuddy-v1';
-self.addEventListener('install',e=>{
-  e.waitUntil(caches.open(C).then(c=>c.addAll(['/'])));
-  self.skipWaiting();
-});
-self.addEventListener('activate',e=>e.waitUntil(clients.claim()));
-self.addEventListener('fetch',e=>{
-  e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request)));
-});`;
-    const swBlob = new Blob([sw], { type: 'application/javascript' });
-    navigator.serviceWorker.register(URL.createObjectURL(swBlob)).catch(() => {});
-  }
-}
-
 // ── Tab navigation ───────────────────────────────────────
 let curTab = 'home';
 
@@ -1037,10 +995,9 @@ function downloadCSV() {
   ).join('\n');
 
   const a  = document.createElement('a');
-  a.href   = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
+  a.href   = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
   a.download = `finbuddy-${monthKey()}.csv`;
   a.click();
-  URL.revokeObjectURL(a.href);
   showToast('CSV downloaded!');
 }
 
@@ -1191,7 +1148,6 @@ function showToast(msg) {
 
 // ── Boot ─────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
-  initPWA();
   initCategories();
 
   // Chart.js dark defaults
@@ -1224,6 +1180,11 @@ document.addEventListener('DOMContentLoaded', () => {
   buildCatPicker();
   syncDisplay();
 });
+</script>
+<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js');
+}
 </script>
 </body>
 </html>
