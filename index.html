@@ -10,7 +10,6 @@
   <title>FinBuddy</title>
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/png" href="Logo.png">
-  <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <style>
     :root {
@@ -265,16 +264,54 @@
 
     /* ── Toast ── */
     #toast {
-      position: fixed; bottom: 86px; left: 50%;
-      transform: translateX(-50%) translateY(12px);
       background: var(--accent); color: #000;
       font-weight: 700; font-size: 13px;
       padding: 10px 22px; border-radius: 99px;
-      z-index: 999; opacity: 0; pointer-events: none;
       white-space: nowrap;
+    }
+
+    #toast-wrap {
+      position: fixed; bottom: 86px; left: 50%;
+      transform: translateX(-50%) translateY(12px);
+      z-index: 999; display: flex; align-items: center; gap: 8px;
+      opacity: 0; pointer-events: none;
       transition: opacity 0.22s ease, transform 0.22s ease;
     }
-    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    #toast-wrap.show { opacity: 1; transform: translateX(-50%) translateY(0); pointer-events: auto; }
+    #toast-undo {
+      background: var(--float); color: var(--accent); border: 1px solid var(--accent);
+      font-weight: 700; font-size: 12px; padding: 8px 14px; border-radius: 99px;
+      cursor: pointer; display: none;
+      transition: transform 0.12s ease, opacity 0.12s ease;
+    }
+    #toast-undo.show { display: block; }
+    #toast-undo:active { transform: scale(0.94); }
+
+    .day-header {
+      font-size: 11px; color: var(--muted); font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.9px;
+      padding: 14px 0 6px;
+    }
+    .day-group:first-child .day-header { padding-top: 6px; }
+
+    .filter-toggle {
+      display: inline-flex; background: var(--float); border: 1px solid var(--border);
+      border-radius: 10px; overflow: hidden; margin-bottom: 16px;
+    }
+    .filter-toggle button {
+      background: none; border: none; color: var(--muted);
+      font-size: 12px; font-weight: 700; padding: 8px 14px; cursor: pointer;
+      transition: color 0.15s ease, background 0.15s ease;
+    }
+    .filter-toggle button.active {
+      background: var(--accent-dim); color: var(--accent);
+    }
+    .filter-toggle button:active { transform: scale(0.96); }
+
+    #home-greeting-name { cursor: pointer; }
+    #modal-input-wrap { display: none; margin-bottom: 16px; text-align: left; }
+    #modal-input-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 6px; }
+    #modal-clear { display: none; }
 
     /* ── Chart containers ── */
     .chart-wrap {
@@ -447,6 +484,9 @@
             <input id="home-search" type="text" placeholder="Search..." style="background:var(--float);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:13px;padding:6px 10px;width:120px;outline:none;">
           </div>
           <div id="home-list" class="card" style="padding:0 14px;"></div>
+          <div id="home-no-match" style="text-align:center;padding:28px 20px;color:var(--dim);display:none;font-size:13px;">
+            No matches found
+          </div>
           <div id="home-empty" style="text-align:center;padding:44px 20px;color:var(--muted);display:none;">
             <div style="font-size:42px;margin-bottom:12px;">💸</div>
             <p style="font-size:15px;font-weight:700;margin-bottom:4px;">No expenses yet</p>
@@ -477,7 +517,9 @@
 
         <!-- Category -->
         <div style="margin-bottom:14px;">
-          <p class="sec-label">Category</p>
+          <p class="sec-label" id="cat-recent-label" style="display:none;">Recent</p>
+          <div id="cat-recent-row" style="display:flex;gap:8px;margin-bottom:10px;"></div>
+          <p class="sec-label">All categories</p>
           <div id="cat-row" style="display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;">
             <!-- js-generated -->
           </div>
@@ -532,7 +574,11 @@
     <div id="tab-budget" class="tab-panel">
       <div style="padding:20px 18px 0;">
         <h2 style="font-size:20px;font-weight:900;padding-top:10px;margin-bottom:4px;">Monthly Limits</h2>
-        <p style="font-size:13px;color:var(--muted);margin-bottom:20px;">Spending caps per category · alerts start at 50%</p>
+        <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">Spending caps per category · alerts start at 50%</p>
+        <div class="filter-toggle" id="budget-filter-toggle">
+          <button type="button" data-filter="all" class="active">Show all</button>
+          <button type="button" data-filter="active">Active only</button>
+        </div>
         <div id="budget-list" style="display:flex;flex-direction:column;gap:11px;"></div>
         <button id="budget-save-btn" class="btn-accent"
           style="width:100%;padding:16px;font-size:16px;margin-top:22px;">
@@ -550,7 +596,7 @@
     <!-- ═══ EXPORT ═══ -->
     <div id="tab-export" class="tab-panel">
       <div style="padding:20px 18px 0;">
-        <h2 style="font-size:20px;font-weight:900;padding-top:10px;margin-bottom:16px;">Export Data</h2>
+        <h2 style="font-size:20px;font-weight:900;padding-top:10px;margin-bottom:16px;">More</h2>
 
         <!-- Month switcher -->
         <div id="ms-export" class="month-switcher"></div>
@@ -706,7 +752,7 @@
         <polyline points="7 10 12 15 17 10"/>
         <line x1="12" y1="15" x2="12" y2="3"/>
       </svg>
-      <span>Export</span>
+      <span>More</span>
     </button>
 
     <button class="nav-btn" id="nav-stats" data-tab="stats">
@@ -720,13 +766,22 @@
 
 </div><!-- /#app -->
 
-<div id="toast"></div>
+<div id="toast-wrap">
+  <button id="toast-undo" type="button">Undo</button>
+  <div id="toast"></div>
+</div>
 
 <div id="modal-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:998;display:none;align-items:center;justify-content:center;padding:24px;">
   <div id="modal-box" class="card" style="padding:24px;max-width:320px;width:100%;text-align:center;">
+    <p id="modal-title" style="font-size:17px;font-weight:800;margin-bottom:8px;display:none;"></p>
     <p id="modal-msg" style="font-size:15px;font-weight:600;margin-bottom:20px;line-height:1.4;"></p>
+    <div id="modal-input-wrap">
+      <p id="modal-input-label"></p>
+      <input id="modal-input" class="add-cat-input" type="text" style="width:100%;" autocomplete="off">
+    </div>
     <div style="display:flex;gap:10px;">
       <button id="modal-cancel" class="btn-accent" style="flex:1;padding:12px;font-size:14px;background:var(--float);color:var(--text);">Cancel</button>
+      <button id="modal-clear" class="btn-accent" style="flex:1;padding:12px;font-size:14px;background:var(--float);color:var(--muted);">Clear</button>
       <button id="modal-confirm" class="btn-accent" style="flex:1;padding:12px;font-size:14px;background:var(--red);color:#fff;">Delete</button>
     </div>
   </div>
@@ -743,6 +798,13 @@ const EXP_KEY  = 'vt_expenses';
 const BUD_KEY  = 'vt_budgets';
 const CAT_KEY  = 'finbuddy_categories';
 const NAME_KEY = 'finbuddy_name';
+const WAGE_KEY = 'finbuddy_wage';
+const BACKUP_KEY = 'finbuddy_last_backup';
+const TIPS_KEY = 'finbuddy_tips_seen';
+const DIGEST_KEY = 'finbuddy_last_digest_week';
+const BUDGET_FILTER_KEY = 'finbuddy_budget_active_only';
+const IDB_NAME = 'finbuddy';
+const IDB_STORE = 'state';
 
 const BUILTIN_CATS = [
   { id: 'food',          label: 'Food/Snacks',   svg: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/></svg>',          builtIn: true },
@@ -798,16 +860,59 @@ function saveExp() {
   if (s === _lastExp) return;
   _lastExp = s;
   localStorage.setItem(EXP_KEY, s);
+  syncToIndexedDB();
 }
 function saveBud(o) {
   if (JSON.stringify(state.budgets) === JSON.stringify(o)) return;
   state.budgets = o;
   localStorage.setItem(BUD_KEY, JSON.stringify(state.budgets));
+  syncToIndexedDB();
 }
 function saveCats(a) {
   if (JSON.stringify(state.categories) === JSON.stringify(a)) return;
   state.categories = a;
   localStorage.setItem(CAT_KEY, JSON.stringify(state.categories));
+  syncToIndexedDB();
+}
+
+function openIDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(IDB_NAME, 1);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains(IDB_STORE)) db.createObjectStore(IDB_STORE);
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function syncToIndexedDB() {
+  if (!('indexedDB' in window)) return Promise.resolve();
+  const payload = {
+    expenses: state.expenses,
+    budgets: state.budgets,
+    categories: state.categories,
+    [NAME_KEY]: localStorage.getItem(NAME_KEY) || '',
+    [WAGE_KEY]: localStorage.getItem(WAGE_KEY) || '',
+    [DIGEST_KEY]: localStorage.getItem(DIGEST_KEY) || '',
+    lastSync: Date.now(),
+  };
+  return openIDB().then(db => new Promise((resolve, reject) => {
+    const tx = db.transaction(IDB_STORE, 'readwrite');
+    tx.objectStore(IDB_STORE).put(payload, 'mirror');
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  })).catch(() => {});
+}
+
+function weekKey(d = new Date()) {
+  const date = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const day = date.getDay() || 7;
+  date.setDate(date.getDate() + 4 - day);
+  const yearStart = new Date(date.getFullYear(), 0, 1);
+  const week = Math.ceil((((date - yearStart) / 86400000) + 1) / 7);
+  return `${date.getFullYear()}-W${String(week).padStart(2, '0')}`;
 }
 
 function initCategories() {
@@ -832,7 +937,10 @@ function catIcon(cat, size = 20) {
 }
 
 function todayKey(d = new Date()) {
-  return d.toISOString().slice(0, 10);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
 function monthKey(d = new Date()) {
   return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
@@ -891,7 +999,7 @@ function fmtMonth(mk) {
   return new Date(+y, +m - 1, 1).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
 }
 function entryDate(e) {
-  return e.date || new Date(e.id).toISOString().slice(0, 10);
+  return e.date || todayKey(new Date(e.id));
 }
 function escH(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -1022,23 +1130,20 @@ function pulseMessage(top) {
 
   if (top.tier === 'shame') {
     const hrs = hoursOfWork(top.spent - top.limit);
-    // Accountability + loss aversion + (optional) hours-of-work anchor + future-self framing.
     return hrs
-      ? `You've blown past your <b>${cat}</b> limit by <b>${inr(over)}</b> — about <b>${hrs}h of work</b>, gone. Past You capped this at ${inr(limit)} for a reason.`
-      : `<b>${inr(over)}</b> over your <b>${cat}</b> limit. You promised yourself ${inr(limit)}. The receipts don't lie.`;
+      ? `<b>${inr(over)}</b> past your <b>${cat}</b> limit. That's <b>${hrs} hours of your life</b> you set on fire after you promised ${inr(limit)}. Pathetic.`
+      : `You torched <b>${inr(over)}</b> over <b>${cat}</b>. You wrote down ${inr(limit)} and ignored it anyway. Zero discipline.`;
   }
   if (top.tier === 'caution') {
-    // Scarcity + time pressure + commitment device.
-    return `Only <b>${inr(left)}</b> left for <b>${cat}</b>${days > 0 ? ` with <b>${days} day${days === 1 ? '' : 's'}</b> to go` : ''}. You're at ${pct}% — you set ${inr(limit)} for a reason.`;
+    return `<b>${inr(left)}</b> left on <b>${cat}</b>${days > 0 ? ` — <b>${days} day${days === 1 ? '' : 's'}</b> left` : ''}. You're at <b>${pct}%</b>. One more swipe and you're cooked.`;
   }
-  // aware: goal-gradient + gentle loss framing.
-  return `You're <b>${pct}%</b> through <b>${cat}</b> — <b>${inr(left)}</b> left for the rest of the month. Spend the back half on purpose.`;
+  return `<b>${pct}%</b> of <b>${cat}</b> gone. <b>${inr(left)}</b> left. Stop pretending you don't see this.`;
 }
 
 const PULSE_HEADS = {
-  aware:   '👀 Heads up',
-  caution: '⚠️ Getting tight',
-  shame:   '🔥 Wall of Shame',
+  aware:   '💀 Half gone already',
+  caution: '🩸 Bleeding budget',
+  shame:   '☠️ You absolute clown',
 };
 
 function renderShameBanner() {
@@ -1142,13 +1247,23 @@ function renderHome() {
     listEl.style.display  = 'none';
     listEl.innerHTML = '';
     emptyEl.style.display = 'block';
+    const noMatch = document.getElementById('home-no-match');
+    if (noMatch) noMatch.style.display = 'none';
+    updateAppBadge();
     return;
   }
 
   listEl.style.display  = 'block';
   emptyEl.style.display = 'none';
 
-  listEl.innerHTML = recent.map(e => {
+  const groups = {};
+  recent.forEach(e => {
+    const d = entryDate(e);
+    if (!groups[d]) groups[d] = [];
+    groups[d].push(e);
+  });
+
+  const renderItem = (e) => {
     const cat    = resolveCat(e.category);
     const label  = e.note ? escH(e.note) : escH(cat.label);
     const amtStr = e.amount.toLocaleString('en-IN', { maximumFractionDigits: 2 });
@@ -1176,7 +1291,16 @@ function renderHome() {
         </button>
       </div>
     </div>`;
-  }).join('');
+  };
+
+  listEl.innerHTML = Object.keys(groups).map(d => `
+    <div class="day-group" data-day="${escH(d)}">
+      <div class="day-header">${escH(fmtDate(d))}</div>
+      ${groups[d].map(renderItem).join('')}
+    </div>`).join('');
+
+  filterHomeSearch();
+  updateAppBadge();
 }
 
 // ── ADD EXPENSE ──────────────────────────────────────────
@@ -1184,20 +1308,55 @@ let rawVal  = '';
 let selCat  = 'food';
 let editId  = null;
 
+function topCategories(days = 30, limit = 3) {
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - days);
+  const cutoffKey = todayKey(cutoff);
+  const counts = {};
+  const lastUsed = {};
+  state.expenses.forEach(e => {
+    const d = entryDate(e);
+    if (d < cutoffKey) return;
+    counts[e.category] = (counts[e.category] || 0) + 1;
+    lastUsed[e.category] = Math.max(lastUsed[e.category] || 0, e.id);
+  });
+  return Object.keys(counts)
+    .sort((a, b) => counts[b] - counts[a] || (lastUsed[b] - lastUsed[a]))
+    .slice(0, limit)
+    .map(id => CATS.find(c => c.id === id))
+    .filter(Boolean);
+}
+
+function selectCategory(catId) {
+  selCat = catId;
+  document.querySelectorAll('.cat-pill').forEach(b => {
+    b.classList.toggle('sel', b.dataset.cat === catId);
+  });
+}
+
 function buildCatPicker() {
-  const row = document.getElementById('cat-row');
-  row.innerHTML = CATS.map(c => `
-    <button class="cat-pill${c.id === selCat ? ' sel' : ''}" data-cat="${c.id}">
+  const recent = topCategories();
+  const recentRow = document.getElementById('cat-recent-row');
+  const recentLabel = document.getElementById('cat-recent-label');
+  const pillHtml = (c) => `
+    <button class="cat-pill${c.id === selCat ? ' sel' : ''}" data-cat="${c.id}" type="button">
       <span class="cat-emoji">${catIcon(c)}</span>
       <span>${c.label}</span>
-    </button>`).join('');
+    </button>`;
 
-  row.querySelectorAll('.cat-pill').forEach(btn => {
-    btn.addEventListener('click', () => {
-      selCat = btn.dataset.cat;
-      row.querySelectorAll('.cat-pill').forEach(b => b.classList.remove('sel'));
-      btn.classList.add('sel');
-    });
+  if (recent.length) {
+    recentLabel.style.display = 'block';
+    recentRow.innerHTML = recent.map(pillHtml).join('');
+  } else {
+    recentLabel.style.display = 'none';
+    recentRow.innerHTML = '';
+  }
+
+  const row = document.getElementById('cat-row');
+  row.innerHTML = CATS.map(pillHtml).join('');
+
+  document.querySelectorAll('.cat-pill').forEach(btn => {
+    btn.addEventListener('click', () => selectCategory(btn.dataset.cat));
   });
 }
 
@@ -1330,18 +1489,25 @@ function editExpense(id) {
   syncDisplay();
 }
 
+let pendingUndo = null;
+
 async function deleteExpense(id) {
   const ok = await showConfirm('Delete this expense?');
   if (!ok) return;
-  const nextExpenses = state.expenses.filter(e => String(e.id) !== String(id));
-  if (nextExpenses.length === state.expenses.length) {
+  const removed = state.expenses.find(e => String(e.id) === String(id));
+  if (!removed) {
     showToast('Expense was already removed.');
     return;
   }
-  state.expenses = nextExpenses;
+  state.expenses = state.expenses.filter(e => String(e.id) !== String(id));
   saveExp();
   renderHome();
-  showToast('Expense deleted!');
+  showUndoToast('Expense deleted', () => {
+    state.expenses.push(removed);
+    saveExp();
+    renderHome();
+    showToast('Expense restored');
+  });
 }
 
 function handleExpenseListClick(event) {
@@ -1354,11 +1520,24 @@ function handleExpenseListClick(event) {
 }
 
 // ── BUDGET ───────────────────────────────────────────────
+let budgetActiveOnly = localStorage.getItem(BUDGET_FILTER_KEY) === '1';
+
+function budgetCatsToShow() {
+  if (!budgetActiveOnly) return CATS;
+  const mk = monthKey();
+  return CATS.filter(cat => (state.budgets[cat.id] || 0) > 0 || catMonthSpend(cat.id, mk) > 0);
+}
+
 function renderBudget() {
   const budgets = state.budgets;
   const mk      = monthKey();
 
-  document.getElementById('budget-list').innerHTML = CATS.map(cat => {
+  document.querySelectorAll('#budget-filter-toggle button').forEach(btn => {
+    btn.classList.toggle('active', (btn.dataset.filter === 'active') === budgetActiveOnly);
+  });
+
+  const cats = budgetCatsToShow();
+  document.getElementById('budget-list').innerHTML = cats.map(cat => {
     const limit = budgets[cat.id] || 0;
     const spent = catMonthSpend(cat.id, mk);
     const pctRaw = limit > 0 ? (spent / limit) * 100 : 0;
@@ -1603,10 +1782,13 @@ function exportBackup() {
     [EXP_KEY]: state.expenses,
     [BUD_KEY]: state.budgets,
     [CAT_KEY]: state.categories,
+    [NAME_KEY]: localStorage.getItem(NAME_KEY) || '',
+    [WAGE_KEY]: localStorage.getItem(WAGE_KEY) || '',
   };
   const json = JSON.stringify(backup, null, 2);
   downloadFile(`finbuddy-backup-${todayKey()}.json`, json, 'application/json;charset=utf-8');
   localStorage.setItem(BACKUP_KEY, todayKey());
+  syncToIndexedDB();
   updateBackupStatus();
   showToast('Backup exported!');
 }
@@ -1615,6 +1797,7 @@ function refreshAfterBackupImport() {
   initState();
   initCategories();
   selectedMonth = monthKey();   // imported data may not include the previously-viewed month
+  syncToIndexedDB();
   renderHome();
   buildCatPicker();
   syncDisplay();
@@ -1629,6 +1812,10 @@ function applyBackup(data) {
   localStorage.setItem(EXP_KEY, JSON.stringify(data[EXP_KEY]));
   localStorage.setItem(BUD_KEY, JSON.stringify(data[BUD_KEY]));
   localStorage.setItem(CAT_KEY, JSON.stringify(data[CAT_KEY]));
+  if (data[NAME_KEY]) localStorage.setItem(NAME_KEY, data[NAME_KEY]);
+  else localStorage.removeItem(NAME_KEY);
+  if (data[WAGE_KEY]) localStorage.setItem(WAGE_KEY, String(data[WAGE_KEY]));
+  else localStorage.removeItem(WAGE_KEY);
   refreshAfterBackupImport();
 }
 
@@ -1942,68 +2129,184 @@ function renderStats() {
 
 // ── Toast ────────────────────────────────────────────────
 let toastTm;
-function showToast(msg) {
-  const el = document.getElementById('toast');
-  el.textContent = msg;
-  el.classList.add('show');
+let undoTm = null;
+
+function showToast(msg, duration = 2400) {
+  const wrap = document.getElementById('toast-wrap');
+  const undo = document.getElementById('toast-undo');
+  document.getElementById('toast').textContent = msg;
+  undo.classList.remove('show');
+  undo.onclick = null;
+  wrap.classList.add('show');
   clearTimeout(toastTm);
-  toastTm = setTimeout(() => el.classList.remove('show'), 2400);
+  toastTm = setTimeout(() => wrap.classList.remove('show'), duration);
 }
 
-// ── Modal confirm ──
+function showUndoToast(msg, onUndo) {
+  const wrap = document.getElementById('toast-wrap');
+  const undo = document.getElementById('toast-undo');
+  document.getElementById('toast').textContent = msg;
+  undo.classList.add('show');
+  clearTimeout(toastTm);
+  clearTimeout(undoTm);
+  if (pendingUndo) pendingUndo = null;
+
+  const dismiss = () => {
+    undo.classList.remove('show');
+    undo.onclick = null;
+    wrap.classList.remove('show');
+    pendingUndo = null;
+  };
+
+  undo.onclick = () => {
+    dismiss();
+    onUndo();
+  };
+  pendingUndo = onUndo;
+  wrap.classList.add('show');
+  undoTm = setTimeout(dismiss, 5000);
+}
+
+function filterHomeSearch() {
+  const input = document.getElementById('home-search');
+  const noMatch = document.getElementById('home-no-match');
+  const listEl = document.getElementById('home-list');
+  if (!input || !listEl) return;
+
+  const q = input.value.toLowerCase().trim();
+  let anyVisible = false;
+
+  listEl.querySelectorAll('.day-group').forEach(group => {
+    let groupVisible = false;
+    group.querySelectorAll('.exp-item').forEach(el => {
+      const show = !q || el.textContent.toLowerCase().includes(q);
+      el.style.display = show ? '' : 'none';
+      if (show) groupVisible = true;
+    });
+    group.style.display = groupVisible ? '' : 'none';
+    if (groupVisible) anyVisible = true;
+  });
+
+  if (noMatch) {
+    const searching = q.length > 0;
+    noMatch.style.display = searching && !anyVisible ? 'block' : 'none';
+    listEl.style.display = searching && !anyVisible ? 'none' : 'block';
+  }
+}
+
+function updateAppBadge() {
+  if (!('setAppBadge' in navigator)) return;
+  const { count } = todayStats();
+  if (count > 0) navigator.setAppBadge(count).catch(() => {});
+  else if ('clearAppBadge' in navigator) navigator.clearAppBadge().catch(() => {});
+}
+
+// ── Modal ──
 let modalResolve = null;
+let modalMode = 'confirm';
+
+function resetModal() {
+  document.getElementById('modal-title').style.display = 'none';
+  document.getElementById('modal-input-wrap').style.display = 'none';
+  document.getElementById('modal-clear').style.display = 'none';
+  document.getElementById('modal-msg').style.display = 'block';
+  document.getElementById('modal-confirm').style.background = 'var(--red)';
+  document.getElementById('modal-confirm').style.color = '#fff';
+  document.getElementById('modal-confirm').textContent = 'Delete';
+}
+
 function showConfirm(msg) {
+  resetModal();
+  modalMode = 'confirm';
   document.getElementById('modal-msg').textContent = msg;
   document.getElementById('modal-overlay').style.display = 'flex';
   return new Promise((resolve) => { modalResolve = resolve; });
 }
-document.getElementById('modal-cancel').addEventListener('click', () => {
+
+function showInputModal({ title, label, defaultValue = '', inputMode = 'text', confirmText = 'Save', allowClear = false, validate }) {
+  resetModal();
+  modalMode = 'input';
+  document.getElementById('modal-title').textContent = title;
+  document.getElementById('modal-title').style.display = 'block';
+  document.getElementById('modal-msg').style.display = 'none';
+  document.getElementById('modal-input-label').textContent = label;
+  const input = document.getElementById('modal-input');
+  input.type = inputMode === 'numeric' ? 'number' : 'text';
+  input.inputMode = inputMode === 'numeric' ? 'decimal' : 'text';
+  input.value = defaultValue;
+  document.getElementById('modal-input-wrap').style.display = 'block';
+  document.getElementById('modal-confirm').textContent = confirmText;
+  document.getElementById('modal-confirm').style.background = 'var(--accent)';
+  document.getElementById('modal-confirm').style.color = '#000';
+  if (allowClear) document.getElementById('modal-clear').style.display = 'block';
+  document.getElementById('modal-overlay').style.display = 'flex';
+  setTimeout(() => input.focus(), 50);
+  return new Promise((resolve) => {
+    modalResolve = (val) => {
+      if (val === null) { resolve(null); return; }
+      if (typeof validate === 'function') {
+        const err = validate(val);
+        if (err) { showToast(err); return; }
+      }
+      resolve(val);
+    };
+  });
+}
+
+function closeModal(result) {
   document.getElementById('modal-overlay').style.display = 'none';
-  if (modalResolve) modalResolve(false);
-});
+  if (modalResolve) {
+    const fn = modalResolve;
+    modalResolve = null;
+    fn(result);
+  }
+}
+
+document.getElementById('modal-cancel').addEventListener('click', () => closeModal(modalMode === 'input' ? null : false));
+document.getElementById('modal-clear').addEventListener('click', () => closeModal(''));
 document.getElementById('modal-confirm').addEventListener('click', () => {
-  document.getElementById('modal-overlay').style.display = 'none';
-  if (modalResolve) modalResolve(true);
+  if (modalMode === 'input') closeModal(document.getElementById('modal-input').value.trim());
+  else closeModal(true);
+});
+document.getElementById('modal-input').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') document.getElementById('modal-confirm').click();
 });
 
 // ── Notifications ──
-const WAGE_KEY = 'finbuddy_wage';
-const BACKUP_KEY = 'finbuddy_last_backup';
-
 const NOTIF_MESSAGES = {
   aware: [
-    "You've spent {pct}% of your {cat} budget. That's ₹{amt} gone.",
-    "{cat} budget: {pct}% used. {remaining}% still left — or ₹{left} you could save.",
-    "You're {pct}% through your {cat} limit. Would Future You approve?",
-    "Just a heads up — your {cat} spending is at {pct}% of the limit.",
+    "Half your {cat} budget is gone. ₹{amt} burned. You set a limit and you're already eating it alive.",
+    "{pct}% of {cat} gone. Only ₹{left} left. Keep swiping like money grows on trees.",
+    "You're {pct}% through {cat}. That's not tracking — that's slow-motion self-sabotage.",
+    "₹{amt} on {cat} already. Your limit isn't decorative. Act like it.",
   ],
   guilt: [
-    "That ₹{amt} on {cat} = about {hours} hours of work. Worth the trade?",
-    "You've used {pct}% of your {cat} budget. Only {remaining}% left. Choose wisely.",
-    "₹{left} left for {cat} this month. That's it. Once it's gone, it's gone.",
-    "Quick math: ₹{amt} on {cat} could've been {food}. Hope it was worth it.",
-    "You're at {pct}% on {cat}. The budget is watching. No pressure.",
+    "₹{amt} on {cat}. That's {hours} hours of your life incinerated. Still proud?",
+    "{pct}% of {cat} vaporized. ₹{left} left and you won't stop. Embarrassing.",
+    "You could've had {food}. Instead you bought more {cat}. Priorities: ruined.",
+    "₹{left} left on {cat}. The month isn't done and you're already wheezing.",
+    "{pct}% on {cat}. Every tap is you choosing to ignore Future You. Again.",
   ],
   danger: [
-    "Idiot Tax Alert: You're at {pct}% of your {cat} budget. One more tap and you're in the red.",
-    "You're {pct}% through your {cat} budget and the month isn't over. Future You is already sighing.",
-    "Warning: ₹{left} left on {cat}. Your past self set this limit. Your present self is ignoring it.",
-    "{pct}% used. {days} days left in the month. This math does not math.",
-    "You're {leftPct}% away from disaster on {cat}. Tread carefully.",
+    "RED ALERT: {pct}% on {cat}. ₹{left} left. One more purchase and you're financially illiterate.",
+    "{pct}% through {cat} with {days} days left. The math is screaming. You're not listening.",
+    "₹{left} left on {cat}. You wrote the limit. Now you're speed-running past it.",
+    "You're {leftPct}% from detonating {cat}. Keep going — your savings love suffering.",
+    "Idiot tax loading: {pct}% on {cat}. Your past self is disgusted.",
   ],
   breach: [
-    "You blew it. ₹{over} over your {cat} budget. That wasn't a suggestion, it was a limit.",
-    "Your {cat} budget: dead. ₹{over} in the grave. Want a shovel for next month?",
-    "You've spent ₹{over} more on {cat} than you planned. That's {hours} hours of your life you gave away.",
-    "Congratulations — you just joined the 'I don't need budgets' club. Your savings are not amused.",
-    "Budget? Never heard of her. — Your {cat} spending, apparently.",
+    "LIMIT DEAD. ₹{over} over on {cat}. You didn't 'slightly overspend' — you failed.",
+    "You nuked your {cat} budget by ₹{over}. That's {hours} hours of work. Flushed.",
+    "₹{over} past {cat}. Congratulations on being your own worst enemy.",
+    "Budget? You treated {cat} like a suggestion. It wasn't. ₹{over} over proves it.",
+    "You set a ceiling on {cat} and laughed at it. ₹{over} over. Pathetic.",
   ],
   roast: [
-    "You're {pct}% into your {cat} budget. At this point you're not budgeting, you're just documenting your poor decisions.",
-    "₹{over} over budget on {cat}. That's {hours} hours of work. For NOTHING budgeted. Feel that.",
-    "Your {cat} budget has left the chat. So has your self-control. See you next month.",
-    "You're not sticking to a single limit you set for yourself. Why did you even set them?",
-    "Bold move spending ₹{amt} on {cat} when you're already {pct}% over. Bold. Stupid. But bold.",
+    "{pct}% on {cat} and you STILL just logged another one. At this point you're trolling yourself.",
+    "₹{over} over {cat}. {hours} hours of work — gone — because you can't follow one rule.",
+    "Your {cat} budget is a corpse. You keep stabbing it with ₹{amt} charges.",
+    "You don't have a budget problem. You have a discipline problem. {cat} is the evidence.",
+    "Already {pct}% over on {cat} and you added ₹{amt} anyway. Main character in your own financial horror movie.",
   ],
 };
 
@@ -2090,8 +2393,8 @@ function checkBudgetAndNotify(catId) {
 
   const catLabel = (CATS.find(c => c.id === catId)?.label) || catId;
   const title = pct >= 100
-    ? '🚫 ' + catLabel + ' budget is DONE'
-    : '⚠️ ' + catLabel + ' at ' + Math.round(pct) + '%';
+    ? '☠️ ' + catLabel + ' — YOU KILLED IT'
+    : '🔪 ' + catLabel + ' at ' + Math.round(pct) + '% — STOP';
 
   try {
     if (navigator.serviceWorker && navigator.serviceWorker.controller) {
@@ -2125,9 +2428,99 @@ function updateBackupStatus() {
   if (!el) return;
   const days = backupDaysAgo();
   if (days === null) {
-    el.textContent = 'Backup includes expenses, budgets, and categories.';
+    el.textContent = 'Backup includes expenses, budgets, categories, name, and income.';
   } else {
     el.textContent = `Last backup: ${days === 0 ? 'today' : days === 1 ? 'yesterday' : days + ' days ago'}.`;
+  }
+}
+
+function buildWeeklyDigestText() {
+  const today = new Date();
+  const end = todayKey(today);
+  const startDate = new Date(today);
+  startDate.setDate(startDate.getDate() - 6);
+  const start = todayKey(startDate);
+
+  const weekExp = state.expenses.filter(e => {
+    const d = entryDate(e);
+    return d >= start && d <= end;
+  });
+  if (!weekExp.length) return null;
+
+  const total = weekExp.reduce((s, e) => s + e.amount, 0);
+  const catTotals = {};
+  weekExp.forEach(e => { catTotals[e.category] = (catTotals[e.category] || 0) + e.amount; });
+  const top = Object.entries(catTotals).sort((a, b) => b[1] - a[1])[0];
+  const topLine = top ? ` Top: ${resolveCat(top[0]).label} ${fmtAmt(top[1])}.` : '';
+  return `This week: ${fmtAmt(total)} across ${weekExp.length} transactions.${topLine} Tap to open.`;
+}
+
+function sendWeeklyDigestNotification() {
+  const body = buildWeeklyDigestText();
+  if (!body) return;
+
+  const currentWeek = weekKey();
+  localStorage.setItem(DIGEST_KEY, currentWeek);
+  syncToIndexedDB();
+
+  const title = 'FinBuddy Weekly Digest';
+  try {
+    if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+      navigator.serviceWorker.controller.postMessage({
+        type: 'show-notification', title, body, tag: 'weekly-digest',
+      });
+    } else if ('Notification' in window && Notification.permission === 'granted') {
+      new Notification(title, { body, icon: './Logo.png', tag: 'weekly-digest' });
+    }
+  } catch (e) { /* non-critical */ }
+}
+
+function maybeSendWeeklyDigest() {
+  if (new Date().getDay() !== 0) return;
+  const currentWeek = weekKey();
+  if (localStorage.getItem(DIGEST_KEY) === currentWeek) return;
+  sendWeeklyDigestNotification();
+}
+
+async function registerPeriodicDigest() {
+  if (!('serviceWorker' in navigator)) return;
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    if ('periodicSync' in reg) {
+      await reg.periodicSync.register('weekly-digest', { minInterval: 7 * 24 * 60 * 60 * 1000 });
+    }
+    if (navigator.serviceWorker.controller) {
+      navigator.serviceWorker.controller.postMessage({ type: 'weekly-digest-check' });
+    }
+  } catch (e) { /* periodic sync not granted */ }
+}
+
+function showOnboardingTips() {
+  if (localStorage.getItem(TIPS_KEY) === 'v1') return;
+  const tips = [
+    'Long-press + to repeat your last expense',
+    'Tap your name on Home to change it',
+    'Use More tab to export backups',
+  ];
+  let i = 0;
+  const next = () => {
+    if (i >= tips.length) {
+      localStorage.setItem(TIPS_KEY, 'v1');
+      return;
+    }
+    showToast(tips[i], 2800);
+    i += 1;
+    setTimeout(next, 3000);
+  };
+  setTimeout(next, 1500);
+}
+
+function handleDeepLink() {
+  const tab = new URLSearchParams(window.location.search).get('tab');
+  const valid = ['home', 'add', 'budget', 'export', 'stats'];
+  if (tab && valid.includes(tab)) {
+    switchTab(tab);
+    history.replaceState(null, '', window.location.pathname);
   }
 }
 
@@ -2135,6 +2528,7 @@ function updateBackupStatus() {
 document.addEventListener('DOMContentLoaded', () => {
   initState();
   initCategories();
+  syncToIndexedDB();
 
   // Chart.js dark defaults
   if (window.Chart) {
@@ -2144,8 +2538,11 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   requestNotifPermission();
+  registerPeriodicDigest();
+  maybeSendWeeklyDigest();
 
   renderHome();
+  handleDeepLink();
 
   // All data-tab nav buttons
   document.querySelectorAll('[data-tab]').forEach(btn => {
@@ -2184,51 +2581,86 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Monthly income (wage) setting
-  document.getElementById('wage-btn').addEventListener('click', () => {
+  document.getElementById('wage-btn').addEventListener('click', async () => {
     const cur = parseFloat(localStorage.getItem(WAGE_KEY)) || '';
-    const input = prompt('Enter your monthly income (₹):', cur);
-    if (input === null) return;
-    const val = Number(input);
-    if (!Number.isFinite(val) || val < 0) { showToast('Enter a valid amount'); return; }
-    if (val === 0) localStorage.removeItem(WAGE_KEY);
-    else localStorage.setItem(WAGE_KEY, String(val));
+    const val = await showInputModal({
+      title: 'Monthly income',
+      label: 'Amount (₹)',
+      defaultValue: cur || '',
+      inputMode: 'numeric',
+      confirmText: 'Save',
+      allowClear: true,
+      validate: (v) => {
+        if (v === '') return '';
+        const n = Number(v);
+        if (!Number.isFinite(n) || n < 0) return 'Enter a valid amount';
+        return '';
+      },
+    });
+    if (val === null) return;
+    if (val === '') localStorage.removeItem(WAGE_KEY);
+    else localStorage.setItem(WAGE_KEY, String(Number(val)));
+    syncToIndexedDB();
     renderWageValue();
+    showToast(val === '' ? 'Income cleared' : 'Income saved');
   });
   renderWageValue();
 
   // Editable greeting name
-  document.getElementById('home-greeting-name')?.addEventListener('click', () => {
-    const name = prompt('Enter your name:', localStorage.getItem(NAME_KEY) || 'Bobby');
-    if (name && name.trim()) {
-      localStorage.setItem(NAME_KEY, name.trim());
-      renderHome();
-    }
+  document.getElementById('home-greeting-name')?.addEventListener('click', async () => {
+    const val = await showInputModal({
+      title: 'Your name',
+      label: 'Display name',
+      defaultValue: localStorage.getItem(NAME_KEY) || 'Bobby',
+      validate: (v) => (!v.trim() ? 'Name cannot be empty' : ''),
+    });
+    if (val === null) return;
+    localStorage.setItem(NAME_KEY, val.trim());
+    syncToIndexedDB();
+    renderHome();
+    showToast('Name updated');
+  });
+
+  // Budget filter toggle
+  document.getElementById('budget-filter-toggle')?.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-filter]');
+    if (!btn) return;
+    budgetActiveOnly = btn.dataset.filter === 'active';
+    localStorage.setItem(BUDGET_FILTER_KEY, budgetActiveOnly ? '1' : '0');
+    renderBudget();
   });
 
   // Search handler
-  document.getElementById('home-search')?.addEventListener('input', (e) => {
-    const q = e.target.value.toLowerCase().trim();
-    document.querySelectorAll('#home-list .exp-item').forEach(el => {
-      el.style.display = !q || el.textContent.toLowerCase().includes(q) ? '' : 'none';
-    });
-  });
+  document.getElementById('home-search')?.addEventListener('input', filterHomeSearch);
 
   // Prime add form
   buildCatPicker();
   syncDisplay();
 
+  showOnboardingTips();
+
   // Gentle backup nudge if it's been a while (or never)
   const days = backupDaysAgo();
-  if (state.expenses.length >= 5 && (days === null || days >= 14)) {
+  if (state.expenses.length >= 5 && (days === null || days >= 14) && localStorage.getItem(TIPS_KEY) === 'v1') {
     setTimeout(() => showToast(days === null
       ? 'Tip: export a backup to keep your data safe'
-      : `It's been ${days} days since your last backup`), 1200);
+      : `It's been ${days} days since your last backup`), 12000);
   }
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') maybeSendWeeklyDigest();
+  });
 });
-</script>
-<script>
+
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('./sw.js');
+  navigator.serviceWorker.register('./sw.js').then(() => {
+    registerPeriodicDigest();
+  });
+  navigator.serviceWorker.addEventListener('message', (event) => {
+    if (event.data && event.data.type === 'navigate-tab') {
+      switchTab(event.data.tab || 'home');
+    }
+  });
 }
 </script>
 </body>

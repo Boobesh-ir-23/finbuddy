@@ -24,5 +24,21 @@
       "type": "image/png",
       "purpose": "maskable"
     }
+  ],
+  "shortcuts": [
+    {
+      "name": "Add expense",
+      "short_name": "Add",
+      "description": "Log a new expense",
+      "url": "./?tab=add",
+      "icons": [{ "src": "./Logo.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Today's spend",
+      "short_name": "Today",
+      "description": "View today's spending",
+      "url": "./?tab=home",
+      "icons": [{ "src": "./Logo.png", "sizes": "192x192" }]
+    }
   ]
 }
